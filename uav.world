@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<sdf version="1.5">
+  <world name="default">
+
+    <!-- Mặt đất -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <gui>
+      <camera name="user_camera">
+        <!-- x y z roll pitch yaw -->
+        <pose>-8 0 4 0 0.3 0</pose>
+      </camera>
+    </gui>
+    <!-- Mặt trời -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- UAV flix -->
+    <include>
+      <uri>model://uav</uri>
+       <material>
+  	<ambient>1 1 1 1</ambient>
+  	<diffuse>1 1 1 1</diffuse>
+  	<specular>0.4 0.4 0.4 1</specular>
+       </material>
+      <pose>0 0 0.6 0 0 0</pose>
+    </include>
+
+  </world>
+</sdf>

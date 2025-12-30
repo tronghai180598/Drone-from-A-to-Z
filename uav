@@ -1,0 +1,69 @@
+#!/bin/bash
+# UAV Control Script - All-in-one command interface
+# Usage: ./uav <command> [args...]
+
+CMD_FILE="/tmp/uav_cmd"
+
+if [ $# -eq 0 ]; then
+    echo "UAV Control Script"
+    echo ""
+    echo "Usage: ./uav <command> [args...]"
+    echo ""
+    echo "Commands:"
+    echo "  arm                    - Arm UAV (take off)"
+    echo "  disarm                 - Disarm UAV (land)"
+    echo "  set <var> <value>      - Set variable (e.g., set z 3)"
+    echo "  get <var>              - Get variable value"
+    echo "  list                   - List all variables"
+    echo ""
+    echo "Examples:"
+    echo "  ./uav arm"
+    echo "  ./uav set z 3"
+    echo "  ./uav set kp 5.0"
+    echo "  ./uav get z"
+    echo "  ./uav list"
+    exit 0
+fi
+
+COMMAND=$1
+
+case "$COMMAND" in
+    arm)
+        echo "arm" > "$CMD_FILE"
+        echo "Command sent: arm"
+        ;;
+    disarm)
+        echo "disarm" > "$CMD_FILE"
+        echo "Command sent: disarm"
+        ;;
+    set)
+        if [ $# -eq 3 ]; then
+            echo "set $2 $3" > "$CMD_FILE"
+            echo "Set $2 = $3"
+        else
+            echo "Error: Usage: ./uav set <variable> <value>"
+            echo "Example: ./uav set z 3"
+            exit 1
+        fi
+        ;;
+    get)
+        if [ $# -eq 2 ]; then
+            echo "get $2" > "$CMD_FILE"
+            echo "Getting $2 value..."
+        else
+            echo "Error: Usage: ./uav get <variable>"
+            echo "Example: ./uav get z"
+            exit 1
+        fi
+        ;;
+    list)
+        echo "list" > "$CMD_FILE"
+        echo "Listing all variables..."
+        ;;
+    *)
+        echo "Error: Unknown command: $COMMAND"
+        echo "Run './uav' without arguments to see usage"
+        exit 1
+        ;;
+esac
+

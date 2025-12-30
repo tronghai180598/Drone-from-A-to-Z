@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<sdf version="1.5">
+  <model name="uav">
+    <plugin name="uav_controller" filename="libuav_plugin.so"/>
+    <link name="body">
+      <inertial>
+        <mass>0.06</mass>
+        <inertia>
+	    <ixx>5.29e-4</ixx>
+	    <iyy>3.89e-4</iyy>
+	    <izz>8.23e-4</izz>
+        </inertia>
+      </inertial>
+      <velocity_decay>
+  	<linear>0.0015</linear>
+  	<angular>0.0015</angular>
+      </velocity_decay>
+
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>0.095 0.095 0.0276</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <sensor name="imu" type="imu">
+        <always_on>1</always_on>
+        <visualize>0</visualize>
+        <update_rate>1000</update_rate>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><stddev>0</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><stddev>0</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+
+      <visual name="body">
+        <geometry>
+          <mesh>
+            <uri>model://uav/uav.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+              <material>
+  		<ambient>1 1 1 1</ambient>
+  		<diffuse>1 1 1 1</diffuse>
+  		<specular>0.4 0.4 0.4 1</specular>
+	    </material>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name="prop0"><!-- rear left -->
+        <geometry><cylinder><radius>0.06</radius><length>0</length></cylinder></geometry>
+        <pose>-0.1  0.12 0.038 0 0 0</pose>
+        <material><ambient>0.6 0.2 0.2 1.0</ambient><diffuse>0.9 0.4 0.4 1.0</diffuse></material>
+      </visual>
+
+      <visual name="prop1"><!-- rear right -->
+        <geometry><cylinder><radius>0.06</radius><length>0</length></cylinder></geometry>
+        <pose>-0.1 -0.12 0.038 0 0 0</pose>
+        <material><ambient>0.6 0.2 0.2 1.0</ambient><diffuse>0.9 0.4 0.4 1.0</diffuse></material>
+      </visual>
+
+      <visual name="prop2"><!-- front right -->
+        <geometry><cylinder><radius>0.06</radius><length>0</length></cylinder></geometry>
+        <pose> 0.1 -0.12 0.038 0 0 0</pose>
+        <material><ambient>0.6 0.2 0.2 1.0</ambient><diffuse>0.9 0.4 0.4 1.0</diffuse></material>
+      </visual>
+
+      <visual name="prop3"><!-- front left -->
+        <geometry><cylinder><radius>0.06</radius><length>0</length></cylinder></geometry>
+        <pose> 0.1  0.12 0.038 0 0 0</pose>
+        <material><ambient>0.6 0.2 0.2 1.0</ambient><diffuse>0.9 0.4 0.4 1.0</diffuse></material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>
+
