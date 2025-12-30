@@ -28,6 +28,12 @@
 #include "cli.cpp"
 #include "vector.h"
 #include "quaternion.h"
+
+// Target tracking struct (must be defined before control.ino)
+struct TargetPos {
+    float x, y, z;
+};
+
 #include "control.ino"
 #include "KrenCtrl.hpp"
 
@@ -36,6 +42,7 @@ Vector gyro, acc, pos, vel;
 extern float X_set;
 extern float Y_set;
 extern float Z_set;
+extern float yaw_set;
 extern char controller_mode[16];  // Controller mode: "stick" or "auto"
 extern float target_roll;
 extern float target_pitch;
@@ -52,6 +59,10 @@ float roll_H_filtered = 0.0f, pitch_H_filtered = 0.0f, yaw_H_filtered = 0.0f;
 extern bool armed;
 extern float motors[4];
 extern const float ONE_G;
+
+// Target tracking variables
+TargetPos target_pos_world;
+bool target_valid = false;
 
 using ignition::math::Vector3d;
 using namespace gazebo;
@@ -75,6 +86,7 @@ private:
 	// UDP socket for sending position to Qt
 	int udpSocket;
 	struct sockaddr_in udpAddr;
+	
 
 public:
 	ModelFlix() : logFileOpened(false), controlLogFileOpened(false), positionLogFileOpened(false), udpSocket(-1) {}
@@ -174,6 +186,19 @@ public:
 		vel.x = this->model->WorldLinearVel().X();
 		vel.y = this->model->WorldLinearVel().Y();
 		vel.z = this->model->WorldLinearVel().Z();
+		
+		// Get target pose (every update) - only get pose, tracking logic is in control.ino
+		physics::WorldPtr world = this->model->GetWorld();
+		physics::ModelPtr target = world->ModelByName("random_robot");
+		if (target) {
+			auto p = target->WorldPose().Pos();
+			target_pos_world.x = (float)p.X();
+			target_pos_world.y = (float)p.Y();
+			target_pos_world.z = (float)p.Z();
+			target_valid = true;
+		} else {
+			target_valid = false;
+		}
 		
 		control();
 		applyMotorForces();
@@ -331,6 +356,7 @@ public:
 			positionLogFile.flush();
 		}
 	}
+	
 	~ModelFlix() {
 		if (logFileOpened && logFile.is_open()) {
 			logFile.close();

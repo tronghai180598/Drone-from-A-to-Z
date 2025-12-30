@@ -129,6 +129,19 @@ uav_plugin/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/uav_plugin.dir/build.make CMakeFiles/uav_plugin.dir/build
 .PHONY : uav_plugin/fast
 
+#=============================================================================
+# Target rules for targets named random_robot_plugin
+
+# Build rule for target.
+random_robot_plugin: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 random_robot_plugin
+.PHONY : random_robot_plugin
+
+# fast build rule for target.
+random_robot_plugin/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/build
+.PHONY : random_robot_plugin/fast
+
 KrenCtrl.o: KrenCtrl.cpp.o
 .PHONY : KrenCtrl.o
 
@@ -177,6 +190,30 @@ KrenMdl.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/uav_plugin.dir/build.make CMakeFiles/uav_plugin.dir/KrenMdl.cpp.s
 .PHONY : KrenMdl.cpp.s
 
+RandomRobotPlugin.o: RandomRobotPlugin.cpp.o
+.PHONY : RandomRobotPlugin.o
+
+# target to build an object file
+RandomRobotPlugin.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/RandomRobotPlugin.cpp.o
+.PHONY : RandomRobotPlugin.cpp.o
+
+RandomRobotPlugin.i: RandomRobotPlugin.cpp.i
+.PHONY : RandomRobotPlugin.i
+
+# target to preprocess a source file
+RandomRobotPlugin.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/RandomRobotPlugin.cpp.i
+.PHONY : RandomRobotPlugin.cpp.i
+
+RandomRobotPlugin.s: RandomRobotPlugin.cpp.s
+.PHONY : RandomRobotPlugin.s
+
+# target to generate assembly for a file
+RandomRobotPlugin.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/RandomRobotPlugin.cpp.s
+.PHONY : RandomRobotPlugin.cpp.s
+
 UavPlugin.o: UavPlugin.cpp.o
 .PHONY : UavPlugin.o
 
@@ -209,6 +246,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... random_robot_plugin"
 	@echo "... uav_plugin"
 	@echo "... KrenCtrl.o"
 	@echo "... KrenCtrl.i"
@@ -216,6 +254,9 @@ help:
 	@echo "... KrenMdl.o"
 	@echo "... KrenMdl.i"
 	@echo "... KrenMdl.s"
+	@echo "... RandomRobotPlugin.o"
+	@echo "... RandomRobotPlugin.i"
+	@echo "... RandomRobotPlugin.s"
 	@echo "... UavPlugin.o"
 	@echo "... UavPlugin.i"
 	@echo "... UavPlugin.s"
