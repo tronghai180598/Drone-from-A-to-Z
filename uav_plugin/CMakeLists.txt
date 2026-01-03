@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(uav_plugin)
 
+# Generate compile_commands.json for IDE/linter
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(gazebo REQUIRED)
 
 include_directories(${GAZEBO_INCLUDE_DIRS})

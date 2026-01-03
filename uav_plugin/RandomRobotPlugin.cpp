@@ -5,6 +5,7 @@
 #include <ignition/math/Pose3.hh>
 #include <random>
 #include <cmath>
+#include <iostream>
 
 using namespace gazebo;
 using namespace std;
@@ -34,10 +35,10 @@ public:
     RandomRobotPlugin() : gen(rd()) {
         directionChangeInterval = 8.0;
         lastDirectionChange = 0.0;
-        maxSpeed = 1.0;
-        maxAngularVel = 0.5;
+        maxSpeed = 1.2;
+        maxAngularVel = 0.2;
         searchRadius = 15.0;
-        speedDist = uniform_real_distribution<double>(1.0, maxSpeed);
+        speedDist = uniform_real_distribution<double>(0.5, maxSpeed);
         angleDist = uniform_real_distribution<double>(0.0, 2.0 * M_PI);
         timeDist = uniform_real_distribution<double>(5.0, 12.0);
     }
@@ -53,7 +54,7 @@ public:
         
         if (_sdf && _sdf->HasElement("max_speed")) {
             maxSpeed = _sdf->Get<double>("max_speed");
-            speedDist = uniform_real_distribution<double>(0.2, maxSpeed);
+            speedDist = uniform_real_distribution<double>(0.1, maxSpeed);
         }
         
         if (_sdf && _sdf->HasElement("max_angular_vel")) {
@@ -109,7 +110,7 @@ private:
         targetY = currentY + distance * sin(angle);
         
         currentSpeed = speedDist(gen);
-        currentAngularVel = maxAngularVel * 0.3;
+        currentAngularVel = maxAngularVel * 0.1;
     }
     
     void moveTowardsTarget() {
@@ -139,7 +140,7 @@ private:
         if (fabs(angleError) > 0.15) {
             angularVel = currentAngularVel;
             if (angleError < 0) angularVel = -angularVel;
-            linearVel *= 0.3;
+            linearVel *= 0.1;
         }
         
         ignition::math::Vector3d linearVelocity(linearVel * cos(currentYaw), 
