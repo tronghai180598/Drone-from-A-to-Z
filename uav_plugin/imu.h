@@ -7,6 +7,8 @@
 extern Quaternion attitude;
 extern float roll_H, pitch_H, yaw_H;
 extern float roll_H_filtered, pitch_H_filtered, yaw_H_filtered;
+extern float dt;
+extern Vector gyro;
 
 // Forward declarations
 void updateAttitude(const Vector& acc);
@@ -35,14 +37,31 @@ inline void updateAttitude(const Vector& acc) {
     pitch_H = approx_atan2_quadrant(-acc.x, acc.z); // pitch
     yaw_H = attitude.getYaw(); // yaw from quaternion
 }
-inline void lowPassFilter(float& value, float input, float alpha) {
-    value = alpha * input + (1 - alpha) * value;
+// Kalman filter for 1D signal
+inline void kalman_for_angle(float& KalmanState,
+                      float& KalmanUncertainty,
+                      float  KalmanInput,
+                      float  KalmanMeasurement,
+                      float  dt) {
+    KalmanState = KalmanState + dt * KalmanInput;
+    KalmanUncertainty = KalmanUncertainty + dt * dt * 4.0f * 4.0f;
+
+    float KalmanGain = KalmanUncertainty * 1.0f /
+                       (1.0f * KalmanUncertainty + 3.0f * 3.0f);
+
+    KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - KalmanState);
+    KalmanUncertainty = (1.0f - KalmanGain) * KalmanUncertainty;
 }
 inline void updateFilteredAttitude(const Vector& acc) {
-    static const float alpha = 0.05f;
-    lowPassFilter(roll_H_filtered, roll_H, alpha);
-    lowPassFilter(pitch_H_filtered, pitch_H, alpha);
-    lowPassFilter(yaw_H_filtered, yaw_H, alpha);
+    // Kalman uncertainty for each angle
+    static float roll_uncertainty = 1.0f;
+    static float pitch_uncertainty = 1.0f;
+    static float yaw_uncertainty = 1.0f;
+    
+    // Use gyro as input (rate of change) for prediction
+    kalman_for_angle(roll_H_filtered, roll_uncertainty, gyro.x, roll_H, dt);
+    kalman_for_angle(pitch_H_filtered, pitch_uncertainty, gyro.y, pitch_H, dt);
+    kalman_for_angle(yaw_H_filtered, yaw_uncertainty, gyro.z, yaw_H, dt);
 }
 
 #endif // IMU_H

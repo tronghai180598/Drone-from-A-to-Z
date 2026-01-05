@@ -15,7 +15,6 @@
 // =======================================================
 extern float roll_H, pitch_H, yaw_H_filtered;
 extern Vector gyro, pos, vel;
-extern Vector gyro_filtered, vel_filtered;
 extern Quaternion attitude;     // Current attitude (from UavPlugin.cpp)
 extern float dt;
 extern float __micros;          // Time in microseconds (from UavPlugin.cpp)
