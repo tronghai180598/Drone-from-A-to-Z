@@ -1,3 +1,6 @@
+#ifndef IMU_H
+#define IMU_H
+
 #include <cmath>
 #include "vector.h"
 #include "quaternion.h"
@@ -18,7 +21,6 @@ inline float approx_atan2_quadrant(float y, float z) {
     float ay = fabsf(y);
     float az = fabsf(z);
     if (ay < kEPS && az < kEPS) { return 0.0f; }
-
     float beta;
     if (ay <= az)  beta = M_PI_4 * (ay / az);
     else  beta = M_PI_4 * (2.0f - az / ay);
@@ -37,8 +39,10 @@ inline void lowPassFilter(float& value, float input, float alpha) {
     value = alpha * input + (1 - alpha) * value;
 }
 inline void updateFilteredAttitude(const Vector& acc) {
-    static const float alpha = 0.1f;
+    static const float alpha = 0.05f;
     lowPassFilter(roll_H_filtered, roll_H, alpha);
     lowPassFilter(pitch_H_filtered, pitch_H, alpha);
     lowPassFilter(yaw_H_filtered, yaw_H, alpha);
 }
+
+#endif // IMU_H

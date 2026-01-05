@@ -3200,13 +3200,13 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
   /usr/include/gazebo-11/gazebo/sensors/WirelessReceiver.hh \
   /usr/include/gazebo-11/gazebo/sensors/WirelessTransceiver.hh \
   /usr/include/gazebo-11/gazebo/sensors/WirelessTransmitter.hh \
-  ../cli.cpp \
-  ../quaternion.h \
+  ../imu.h \
   ../vector.h \
   /usr/include/c++/11/cfloat \
+  ../quaternion.h \
+  ../cli.cpp \
   ../control.ino \
   ../pid.h \
-  ../imu.h \
   ../KrenCtrl.hpp \
   ../KrenMdl.hpp
 

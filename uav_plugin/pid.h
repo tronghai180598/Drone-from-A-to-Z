@@ -6,6 +6,7 @@ public:
     float p, i, d;
     float dt;
     float windup = 100.0f;  // Default, can be set per PID
+    float derivativeFilterTau = 0.05f;  // Low-pass filter time constant for derivative (default 50ms)
 
     float derivative;
     float integral;
@@ -18,6 +19,7 @@ public:
         , derivative(0.0f)
         , integral(0.0f)
         , prevError(0.0f)
+        , derivativeFiltered(0.0f)
         , initialized(false)
     {}
 
@@ -40,12 +42,15 @@ public:
             if (integral >  windup) integral =  windup;
             else if (integral < -windup) integral = -windup;
 
-            // Đạo hàm
-            derivative = (error - prevError) / dt;
+            // Đạo hàm (raw)
+            float derivativeRaw = (error - prevError) / dt;
+            float alpha = dt / (derivativeFilterTau + dt);
+            derivativeFiltered = alpha * derivativeRaw + (1.0f - alpha) * derivativeFiltered;
+            derivative = derivativeFiltered;
         } else {
             // Nếu thời gian nhảy bất thường → reset D, không bơm thêm I
             derivative = 0.0f;
-            // Có thể giữ nguyên integral hoặc reset tùy bạn; ở đây mình giữ nguyên
+            derivativeFiltered = 0.0f;
         }
 
         prevError = error;
@@ -54,13 +59,15 @@ public:
     }
 
     void reset() {
-        integral    = 0.0f;
-        derivative  = 0.0f;
-        prevError   = 0.0f;
-        initialized = false;
+        integral         = 0.0f;
+        derivative       = 0.0f;
+        derivativeFiltered = 0.0f;
+        prevError        = 0.0f;
+        initialized      = false;
     }
 
 private:
     float prevError;
+    float derivativeFiltered;  // Filtered derivative value
     bool  initialized;
 };

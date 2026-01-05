@@ -12,6 +12,3 @@ list(APPEND CMAKE_CXX_FLAGS "${GAZEBO_CXX_FLAGS}")
 
 add_library(uav_plugin SHARED UavPlugin.cpp KrenCtrl.cpp KrenMdl.cpp)
 target_link_libraries(uav_plugin ${GAZEBO_LIBRARIES})
-
-add_library(random_robot_plugin SHARED RandomRobotPlugin.cpp)
-target_link_libraries(random_robot_plugin ${GAZEBO_LIBRARIES})

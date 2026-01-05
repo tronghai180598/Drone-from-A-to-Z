@@ -55,6 +55,13 @@ private:
     QVector<QVector3D> trailPoints_;
     static constexpr int MAX_TRAIL_POINTS = 2000;
     void updateTrailGeometry();
+    
+    // Reference heart trajectory visualization
+    Qt3DCore::QEntity *referenceHeartEntity_{nullptr};
+    Qt3DRender::QGeometryRenderer *referenceHeartRenderer_{nullptr};
+    QVector<QVector3D> referenceHeartPoints_;
+    void generateReferenceHeartTrajectory(float x0, float y0, float z);
+    void updateReferenceHeartGeometry();
 };
 
 #endif // MAINWINDOW_H

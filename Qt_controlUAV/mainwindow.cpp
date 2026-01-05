@@ -117,6 +117,46 @@ MainWindow::MainWindow(QWidget *parent)
     
     trailPoints_.clear();
     
+    // =========================
+    // REFERENCE HEART TRAJECTORY VISUALIZATION
+    // =========================
+    referenceHeartEntity_ = new Qt3DCore::QEntity(root);
+    
+    // Create geometry for reference heart trajectory
+    auto *refHeartGeometry = new Qt3DRender::QGeometry(referenceHeartEntity_);
+    
+    // Position buffer
+    auto *refPositionBuffer = new Qt3DRender::QBuffer(referenceHeartEntity_);
+    refPositionBuffer->setData(QByteArray());
+    
+    auto *refPositionAttribute = new Qt3DRender::QAttribute(referenceHeartEntity_);
+    refPositionAttribute->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
+    refPositionAttribute->setVertexBaseType(Qt3DRender::QAttribute::Float);
+    refPositionAttribute->setVertexSize(3);
+    refPositionAttribute->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+    refPositionAttribute->setBuffer(refPositionBuffer);
+    refPositionAttribute->setByteStride(3 * sizeof(float));
+    refPositionAttribute->setCount(0);
+    refHeartGeometry->addAttribute(refPositionAttribute);
+    
+    // Create geometry renderer
+    referenceHeartRenderer_ = new Qt3DRender::QGeometryRenderer(referenceHeartEntity_);
+    referenceHeartRenderer_->setGeometry(refHeartGeometry);
+    referenceHeartRenderer_->setPrimitiveType(Qt3DRender::QGeometryRenderer::LineStrip);
+    
+    // Material for reference heart (green, dashed appearance)
+    auto *refHeartMat = new Qt3DExtras::QPhongMaterial(referenceHeartEntity_);
+    refHeartMat->setDiffuse(QColor(0, 255, 0)); // Green
+    refHeartMat->setAmbient(QColor(0, 255, 0));
+    refHeartMat->setSpecular(QColor(0, 255, 0));
+    refHeartMat->setShininess(0.0f);
+    
+    referenceHeartEntity_->addComponent(referenceHeartRenderer_);
+    referenceHeartEntity_->addComponent(refHeartMat);
+    
+    referenceHeartPoints_.clear();
+    referenceHeartEntity_->setEnabled(false); // Hidden by default
+    
     qDebug() << "[TRAIL] Trail entity created and initialized, waiting for UDP data...";
 
     // =========================
@@ -309,6 +349,44 @@ MainWindow::MainWindow(QWidget *parent)
             ui->lblStatus->setText("Status: Auto Mode");
         }
     });
+
+    // Heart trajectory button: toggle heart trajectory
+    static bool heartActive = false;
+    static float heartStartX = 0.0f;
+    static float heartStartY = 0.0f;
+    static float heartStartZ = 0.0f;
+    
+    connect(ui->btnHeart, &QPushButton::clicked, this, [this, &heartActive, &heartStartX, &heartStartY, &heartStartZ]() {
+        heartActive = !heartActive;
+        if (heartActive) {
+            // Get current position from last UDP packet to use as center
+            // We'll use the last received position
+            if (trailPoints_.size() > 0) {
+                const QVector3D& lastPos = trailPoints_.last();
+                heartStartX = lastPos.x();
+                heartStartY = lastPos.y();
+                heartStartZ = lastPos.z();
+            } else {
+                // If no trail points yet, use default
+                heartStartX = 0.0f;
+                heartStartY = 0.0f;
+                heartStartZ = 2.0f;
+            }
+            
+            // Generate reference heart trajectory
+            generateReferenceHeartTrajectory(heartStartX, heartStartY, heartStartZ);
+            referenceHeartEntity_->setEnabled(true);
+            
+            writeCommand("heart on");
+            ui->btnHeart->setText("Stop Heart");
+            ui->lblStatus->setText("Status: Heart Trajectory ON");
+        } else {
+            referenceHeartEntity_->setEnabled(false);
+            writeCommand("heart off");
+            ui->btnHeart->setText("Heart Trajectory");
+            ui->lblStatus->setText("Status: Heart Trajectory OFF");
+        }
+    });
 }
 
 MainWindow::~MainWindow()
@@ -405,4 +483,73 @@ void MainWindow::updateTrailGeometry()
     positionAttribute->setCount(trailPoints_.size());
     
     qDebug() << "[TRAIL] Geometry updated: count=" << trailPoints_.size();
+}
+
+void MainWindow::generateReferenceHeartTrajectory(float x0, float y0, float z)
+{
+    // Parameters matching control.ino
+    constexpr float HEART_SCALE = 0.4f;
+    constexpr float HEART_PERIOD = 30.0f;
+    constexpr int NUM_POINTS = 1000; // Smooth curve
+    
+    referenceHeartPoints_.clear();
+    referenceHeartPoints_.reserve(NUM_POINTS);
+    
+    for (int i = 0; i < NUM_POINTS; ++i) {
+        const float t = float(i) / float(NUM_POINTS - 1); // 0 to 1
+        const float elapsed = t * HEART_PERIOD;
+        
+        // Calculate phase (0 to 2*PI over HEART_PERIOD)
+        const float phi = 2.0f * float(M_PI) * (elapsed / HEART_PERIOD);
+        
+        const float s = qSin(phi);
+        const float c = qCos(phi);
+        
+        // Heart equation (same as control.ino lines 110-111)
+        const float x_raw = 16.0f * s * s * s;
+        const float y_raw = 13.0f * c - 5.0f * qCos(2.0f * phi) - 2.0f * qCos(3.0f * phi) - qCos(4.0f * phi);
+        
+        // Apply scale and offset
+        const float x = x0 + HEART_SCALE * x_raw;
+        const float y = y0 + HEART_SCALE * y_raw;
+        
+        referenceHeartPoints_.append(QVector3D(x, y, z));
+    }
+    
+    updateReferenceHeartGeometry();
+    qDebug() << "[HEART] Reference trajectory generated with" << referenceHeartPoints_.size() << "points, center:" << x0 << y0 << z;
+}
+
+void MainWindow::updateReferenceHeartGeometry()
+{
+    if (!referenceHeartRenderer_ || referenceHeartPoints_.size() < 2) return;
+    
+    // Get geometry and position attribute
+    auto *geometry = referenceHeartRenderer_->geometry();
+    if (!geometry) return;
+    
+    auto attributes = geometry->attributes();
+    if (attributes.isEmpty()) return;
+    
+    auto *positionAttribute = attributes.first();
+    if (!positionAttribute) return;
+    
+    auto *buffer = positionAttribute->buffer();
+    if (!buffer) return;
+    
+    // Create vertex data
+    QByteArray vertexData;
+    vertexData.resize(referenceHeartPoints_.size() * 3 * sizeof(float));
+    float *rawVertexArray = reinterpret_cast<float*>(vertexData.data());
+    
+    int idx = 0;
+    for (const QVector3D &pt : referenceHeartPoints_) {
+        rawVertexArray[idx++] = pt.x();
+        rawVertexArray[idx++] = pt.y();
+        rawVertexArray[idx++] = pt.z();
+    }
+    
+    // Update buffer
+    buffer->setData(vertexData);
+    positionAttribute->setCount(referenceHeartPoints_.size());
 }

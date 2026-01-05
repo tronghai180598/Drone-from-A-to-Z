@@ -24,7 +24,7 @@ extern float Z_set;
 extern float X_set;
 extern float Y_set;
 extern float mass;
-extern bool heartMode;  // Heart trajectory mode flag
+extern bool heart_active;
 
 // Map variable names to their pointers and descriptions
 struct VariableInfo {
@@ -162,6 +162,21 @@ void executeCommand(const std::string& line) {
         }
     } else if (cmd == "list") {
         listVariables();
+    } else if (cmd == "heart") {
+        std::string state;
+        if (iss >> state) {
+            if (state == "on") {
+                heart_active = true;
+                std::cout << "[CLI] >>> Heart trajectory ACTIVATED\n";
+            } else if (state == "off") {
+                heart_active = false;
+                std::cout << "[CLI] >>> Heart trajectory DEACTIVATED\n";
+            } else {
+                std::cout << "[CLI] Error: Use 'heart on' or 'heart off'\n";
+            }
+        } else {
+            std::cout << "[CLI] Heart trajectory: " << (heart_active ? "ON" : "OFF") << "\n";
+        }
     } else if (!line.empty()) {
         std::cout << "[CLI] Unknown command: '" << line << "'\n";
         std::cout << "[CLI] Commands: arm, disarm, set <var> <value>, get <var>, list, heart <on/off>\n";

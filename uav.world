@@ -28,10 +28,5 @@
       <pose>0 0 0.6 0 0 0</pose>
     </include>
 
-    <include>
-      <uri>model://robot</uri>
-      <pose>2 2 0.1 0 0 0</pose>
-    </include>
-
   </world>
 </sdf>

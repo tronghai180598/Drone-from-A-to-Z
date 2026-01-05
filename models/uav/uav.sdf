@@ -6,8 +6,8 @@
       <inertial>
         <mass>0.06</mass>
         <inertia>
-	    <ixx>5.29e-4</ixx>
-	    <iyy>3.89e-4</iyy>
+	    <ixx>6.29e-4</ixx>
+	    <iyy>6.29e-4</iyy>
 	    <izz>8.23e-4</izz>
         </inertia>
       </inertial>
@@ -30,14 +30,14 @@
         <update_rate>1000</update_rate>
         <imu>
           <angular_velocity>
-            <x><noise type="gaussian"><stddev>0</stddev></noise></x>
-            <y><noise type="gaussian"><stddev>0</stddev></noise></y>
-            <z><noise type="gaussian"><stddev>0</stddev></noise></z>
+            <x><noise type="gaussian"><stddev>0.1</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0.2</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0.2</stddev></noise></z>
           </angular_velocity>
           <linear_acceleration>
-            <x><noise type="gaussian"><stddev>0</stddev></noise></x>
-            <y><noise type="gaussian"><stddev>0</stddev></noise></y>
-            <z><noise type="gaussian"><stddev>0</stddev></noise></z>
+            <x><noise type="gaussian"><stddev>0.2</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0.2</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0.2</stddev></noise></z>
           </linear_acceleration>
         </imu>
       </sensor>

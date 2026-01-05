@@ -24,15 +24,10 @@
 #ifndef M_PI_4
 #define M_PI_4 (M_PI / 4.0)
 #endif
-
+#include "imu.h"
 #include "cli.cpp"
 #include "vector.h"
 #include "quaternion.h"
-
-// Target tracking struct (must be defined before control.ino)
-struct TargetPos {
-    float x, y, z;
-};
 
 #include "control.ino"
 #include "KrenCtrl.hpp"
@@ -57,12 +52,9 @@ float roll_H = 0.0f, pitch_H = 0.0f, yaw_H = 0.0f;
 float roll_H_filtered = 0.0f, pitch_H_filtered = 0.0f, yaw_H_filtered = 0.0f;
 
 extern bool armed;
+extern bool heart_active;
 extern float motors[4];
 extern const float ONE_G;
-
-// Target tracking variables
-TargetPos target_pos_world;
-bool target_valid = false;
 
 using ignition::math::Vector3d;
 using namespace gazebo;
@@ -174,6 +166,9 @@ public:
 		gyro = Vector(imu->AngularVelocity().X(), imu->AngularVelocity().Y(), imu->AngularVelocity().Z());
 		acc = Vector(imu->LinearAcceleration().X(), imu->LinearAcceleration().Y(), imu->LinearAcceleration().Z());
 		
+		// Update attitude from IMU (with noise) - this calculates roll_H, pitch_H from accelerometer
+		imu_update(acc);
+		
 		const auto pose = this->model->WorldPose();
 		const auto qGazebo = pose.Rot();
 		attitude = Quaternion(qGazebo.W(), qGazebo.X(), qGazebo.Y(), qGazebo.Z());
@@ -186,19 +181,6 @@ public:
 		vel.x = this->model->WorldLinearVel().X();
 		vel.y = this->model->WorldLinearVel().Y();
 		vel.z = this->model->WorldLinearVel().Z();
-		
-		// Get target pose (every update) - only get pose, tracking logic is in control.ino
-		physics::WorldPtr world = this->model->GetWorld();
-		physics::ModelPtr target = world->ModelByName("random_robot");
-		if (target) {
-			auto p = target->WorldPose().Pos();
-			target_pos_world.x = (float)p.X();
-			target_pos_world.y = (float)p.Y();
-			target_pos_world.z = (float)p.Z();
-			target_valid = true;
-		} else {
-			target_valid = false;
-		}
 		
 		control();
 		applyMotorForces();
@@ -245,10 +227,8 @@ public:
 		logFile.open("uav_attitude.log", ios::out | ios::trunc);
 		if (logFile.is_open()) {
 			logFileOpened = true;
-			// Write header with mode column
-			logFile << "# t mode roll_set roll pitch_set pitch\n";
-			logFile << "# Time (s), Mode (0=stick, 1=auto), Roll setpoint (rad), Roll angle (rad), Pitch setpoint (rad), Pitch angle (rad)\n";
-			logFile << "# Mode: 0 = stick mode (manual control), 1 = auto mode (KrenCtrl)\n";
+			// Write header - format only
+			logFile << "# t roll_H roll_H_filtered pitch_H pitch_H_filtered\n";
 			logFile.flush();
 			gzmsg << "Log file opened: uav_attitude.log" << endl;
 		} else {
@@ -260,12 +240,8 @@ public:
 		controlLogFile.open("uav_control.log", ios::out | ios::trunc);
 		if (controlLogFile.is_open()) {
 			controlLogFileOpened = true;
-			// Write header
+			// Write header - format only
 			controlLogFile << "# t mode target_roll target_pitch pdpiRoll_Us\n";
-			controlLogFile << "# Time (s), Mode (0=stick, 1=auto), Target roll (torque), Target pitch (torque), pdpiRoll.Us (KrenCtrl internal signal)\n";
-			controlLogFile << "# Mode: 0 = stick mode (manual control), 1 = auto mode (KrenCtrl)\n";
-			controlLogFile << "# target_roll and target_pitch: control torques for both modes\n";
-			controlLogFile << "# pdpiRoll.Us: KrenCtrl internal control signal (only valid in auto mode)\n";
 			controlLogFile.flush();
 			gzmsg << "Control log file opened: uav_control.log" << endl;
 		} else {
@@ -277,9 +253,8 @@ public:
 		positionLogFile.open("uav_position.log", ios::out | ios::trunc);
 		if (positionLogFile.is_open()) {
 			positionLogFileOpened = true;
-			// Write header
+			// Write header - format only
 			positionLogFile << "# t X Y Z X_set Y_set Z_set\n";
-			positionLogFile << "# Time (s), X position (m), Y position (m), Z position (m), X setpoint (m), Y setpoint (m), Z setpoint (m)\n";
 			positionLogFile.flush();
 			gzmsg << "Position log file opened: uav_position.log" << endl;
 		} else {
@@ -290,22 +265,23 @@ public:
 	void logData() {
 		if (!logFileOpened || !logFile.is_open()) return;
 		
+		// Only log when in stick mode
+		if (strcmp(controller_mode, "stick") != 0) return;
+		
 		double t = model->GetWorld()->SimTime().Double();
 		
-		// Get actual roll and pitch from attitude quaternion (same as control.ino)
-		float roll = attitude.getRoll();
-		float pitch = attitude.getPitch();
+		// Convert IMU angles to degrees (raw and filtered)
+		float roll_H_deg = roll_H * 180.0f / M_PI;
+		float roll_H_filtered_deg = roll_H_filtered * 180.0f / M_PI;
+		float pitch_H_deg = pitch_H * 180.0f / M_PI;
+		float pitch_H_filtered_deg = pitch_H_filtered * 180.0f / M_PI;
 		
-		// Determine mode: 0 = stick, 1 = auto
-		int mode = (strcmp(controller_mode, "stick") == 0) ? 0 : 1;
-		
-		// Format: t mode roll_set roll pitch_set pitch
+		// Format: t roll_H roll_H_filtered pitch_H pitch_H_filtered (all in degrees)
 		logFile.precision(6);
 		logFile << std::fixed;
 		logFile << t << " "
-		        << mode << " "
-		        << roll_set << " " << roll << " "
-		        << pitch_set << " " << pitch << "\n";
+		        << roll_H_deg << " " << roll_H_filtered_deg << " "
+		        << pitch_H_deg << " " << pitch_H_filtered_deg << "\n";
 		
 		// Flush periodically (every 100 lines or so)
 		static int lineCount = 0;

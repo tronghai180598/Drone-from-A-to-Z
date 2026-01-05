@@ -13,15 +13,13 @@
 // =======================================================
 // Externs from simulator/plugin
 // =======================================================
-extern float roll_H_filtered, pitch_H_filtered, yaw_H_filtered;
+extern float roll_H, pitch_H, yaw_H_filtered;
 extern Vector gyro, pos, vel;
+extern Vector gyro_filtered, vel_filtered;
 extern Quaternion attitude;     // Current attitude (from UavPlugin.cpp)
 extern float dt;
 extern float __micros;          // Time in microseconds (from UavPlugin.cpp)
 
-// Target tracking variables (defined in UavPlugin.cpp before this include)
-extern TargetPos target_pos_world;
-extern bool target_valid;
 
 // =======================================================
 // Outputs / Setpoints
@@ -47,6 +45,9 @@ char controller_mode[16] = "stick";  // Default: stick mode
 
 // Armed flag (your project uses this)
 bool armed = false;
+
+// Heart trajectory flag
+bool heart_active = false;
 
 // =======================================================
 // Constants / Limits
@@ -79,336 +80,79 @@ static inline float slewRate(float current, float desired, float max_step) {
 }
 
 // =======================================================
+// Heart Trajectory
+// =======================================================
+static float heart_start_time = 0.0f;
+static float heart_x0 = 0.0f;
+static float heart_y0 = 0.0f;
+static constexpr float HEART_SCALE = 0.4f;  // Scale factor for heart size
+static constexpr float HEART_PERIOD = 40.0f; // Period in seconds (time to complete one heart)
+
+void updateHeartTrajectory() {
+    if (!heart_active) return;
+    
+    // Initialize start position and time on first activation
+    if (heart_start_time == 0.0f) {
+        heart_start_time = __micros / 1000000.0f;
+        heart_x0 = pos.x;
+        heart_y0 = pos.y;
+    }
+    
+    const float currentTime = __micros / 1000000.0f;
+    const float elapsed = currentTime - heart_start_time;
+    
+    // Calculate phase (0 to 2*PI over HEART_PERIOD)
+    const float phi = 2.0f * (float)M_PI * (elapsed / HEART_PERIOD);
+    
+    const float s = sinf(phi);
+    const float c = cosf(phi);
+    
+    // Heart equation
+    const float x_raw = 16.0f * s * s * s;
+    const float y_raw = 13.0f * c - 5.0f * cosf(2.0f * phi) - 2.0f * cosf(3.0f * phi) - cosf(4.0f * phi);
+    
+    // Apply scale and offset
+    X_set = heart_x0 + HEART_SCALE * x_raw;
+    Y_set = heart_y0 + HEART_SCALE * y_raw;
+    
+    // Keep Z constant (or you can set it to a fixed altitude)
+    // Z_set remains unchanged (use current Z_set from Qt)
+}
+
+// =======================================================
 // Controllers
 // =======================================================
 
 // Position -> velocity
-PID pidX (2.5f, 0.0f, 0.0f);
-PID pidY (2.0f, 0.0f, 0.0f);
+PID pidX (0.7f, 0.0f, 0.0f);
+PID pidY (0.7f, 0.0f, 0.0f);
 PID pidZ (1.5f, 0.0f, 0.0f);
 
 // Velocity -> accel/thrust
-PID pidVx(2.2f, 0.06f, 0.03f);
-PID pidVy(2.2f, 0.06f, 0.01f);
-PID pidVz(2.0f, 0.05f, 0.001f);
+PID pidVx(1.4f, 0.04f, 0.035f);
+PID pidVy(1.4f, 0.04f, 0.035f);
+PID pidVz(2.0f, 0.05f, 0.002f);
 
 // Attitude -> rate
-PID pidRoll (1.5f, 0.0f, 0.01f);
-PID pidPitch(1.5f, 0.0f, 0.01f);
-PID pidYaw  (1.0f, 0.0f, 0.05f);
+PID pidRoll (0.8f, 0.0f, 0.0f);
+PID pidPitch(0.8f, 0.0f, 0.0f);
+PID pidYaw  (1.0f, 0.0f, 0.0f);
 
 // Rate -> torque
-PID pidRollRate (0.2f, 0.10f, 0.002f);
-PID pidPitchRate(0.2f, 0.10f, 0.002f);
+PID pidRollRate (0.2f, 0.01f, 0.002f);
+PID pidPitchRate(0.2f, 0.01f, 0.002f);
 PID pidYawRate  (0.15f, 0.1f, 0.002f);
 
 // Your PDPI controllers (used when not in stick mode, or in auto logic)
 KrenCtrl pdpiRoll;
 KrenCtrl pdpiPitch;
 
-// =======================================================
-// Mission State Machine: INIT -> SEARCH -> TRACK -> ATTACK
-// =======================================================
-
-enum TrackingState {
-    STATE_INIT   = 0,   // climb to 4m + yaw scan
-    STATE_SEARCH = 1,   // scan/aim yaw until target stable
-    STATE_TRACK  = 2,   // follow target at stand-off
-    STATE_ATTACK = 3    // dive/attack
-};
-
-static TrackingState trackingState = STATE_INIT;
-
-static int   target_valid_count     = 0;
-static float last_target_lost_time  = 0.0f;
-static float setpoint_update_accum  = 0.0f;
-static float track_start_time       = 0.0f;
-
-// INIT yaw scan override
-static bool  init_scan_yaw_active = false;
-static float init_scan_yaw_rate   = 0.0f;   // rad/s
-
-static float init_start_time      = 0.0f;
-static float init_yaw_accumulated = 0.0f;
-
-// Parameters
-static constexpr float R_FOLLOW = 4.0f;
-static constexpr float Z_FOLLOW = 2.0f;
-
-static constexpr float ATTACK_DISTANCE = 3.5f;
-static constexpr float ATTACK_Z_OFFSET = 0.15f;
-
-static constexpr float VSP_MAX       = 1.0f;
-static constexpr float VSP_ATTACK    = 4.0f;  // 2x faster in attack mode
-static constexpr float VSP_ATTACK_Z  = 2.0f;   // 2x faster vertical in attack mode
-
-static constexpr float SETPOINT_UPDATE_RATE  = 50.0f;  // Hz
-static constexpr int   TARGET_VALID_THRESHOLD = 10;
-static constexpr float TARGET_LOST_TIMEOUT    = 0.7f;
-static constexpr float TRACK_TO_ATTACK_TIME   = 2.0f;
-
-// INIT sequence
-static constexpr float INIT_ALTITUDE       = 4.0f;
-static constexpr float INIT_ROTATIONS      = 0.2f;  // your current value
-static constexpr float INIT_YAW_RATE       = 1.0f;
-static constexpr float ALTITUDE_TOLERANCE  = 0.2f;
-
-// =======================================================
-// updateTargetTracking(): generates X_set, Y_set, Z_set, yaw_set
-// =======================================================
-void updateTargetTracking() {
-    const float currentTime = __micros / 1000000.0f;
-
-    // ---------------------------------------------------
-    // 1) INIT: climb to 4m, then yaw scan (sục sạo) N rotations
-    // ---------------------------------------------------
-    if (trackingState == STATE_INIT) {
-        static bool  rotation_started   = false;
-        static float rotation_start_time = 0.0f;
-        static float prev_yaw_meas      = 0.0f;
-        static bool  prev_yaw_inited    = false;
-
-        // Init on first entry
-        if (init_start_time == 0.0f) {
-            init_start_time = currentTime;
-            yaw_set = yaw_H_filtered;
-
-            init_yaw_accumulated = 0.0f;
-            init_scan_yaw_active = false;
-            init_scan_yaw_rate   = 0.0f;
-
-            rotation_started = false;
-            rotation_start_time = 0.0f;
-            prev_yaw_inited = false;
-        }
-
-        // Phase A: climb to INIT_ALTITUDE
-        const float altitude_error = INIT_ALTITUDE - pos.z;
-
-        if (fabsf(altitude_error) > ALTITUDE_TOLERANCE) {
-            // Hold XY, climb Z, hold yaw
-            X_set = pos.x;
-            Y_set = pos.y;
-            Z_set = INIT_ALTITUDE;
-            yaw_set = yaw_H_filtered;
-
-            // Reset scan state while climbing
-            init_scan_yaw_active = false;
-            init_scan_yaw_rate   = 0.0f;
-            init_yaw_accumulated = 0.0f;
-
-            rotation_started = false;
-            rotation_start_time = 0.0f;
-            prev_yaw_inited = false;
-            return;
-        }
-
-        // Phase B: at altitude, rotate yaw by measured accumulation
-        X_set = pos.x;
-        Y_set = pos.y;
-        Z_set = INIT_ALTITUDE;
-
-        // Keep yaw_set synced (yaw control uses override rate below)
-        yaw_set = yaw_H_filtered;
-
-        if (!rotation_started) {
-            rotation_started = true;
-            rotation_start_time = currentTime;
-
-            prev_yaw_meas   = yaw_H_filtered;
-            prev_yaw_inited = true;
-
-            init_yaw_accumulated = 0.0f;
-
-            init_scan_yaw_active = true;
-            init_scan_yaw_rate   = INIT_YAW_RATE;
-        }
-
-        // accumulate actual yaw change
-        if (prev_yaw_inited) {
-            const float dyaw = wrapAngle(yaw_H_filtered - prev_yaw_meas);
-            const float abs_dyaw = fabsf(dyaw);
-
-            // ignore tiny noise and impossible jumps
-            if (abs_dyaw > 0.001f && abs_dyaw < 3.0f) {
-                init_yaw_accumulated += abs_dyaw;
-            }
-            prev_yaw_meas = yaw_H_filtered;
-        }
-
-        const float target_yaw_rotation = INIT_ROTATIONS * 2.0f * (float)M_PI;
-        const float expected_time = (INIT_YAW_RATE > 1e-6f) ? (target_yaw_rotation / INIT_YAW_RATE) : 0.0f;
-        const bool timeout_reached =
-            (rotation_start_time > 0.0f) &&
-            (expected_time > 0.0f) &&
-            (currentTime - rotation_start_time > expected_time * 1.5f);
-
-        if (init_yaw_accumulated >= target_yaw_rotation || timeout_reached) {
-            // Stop scan immediately
-            init_scan_yaw_active = false;
-            init_scan_yaw_rate   = 0.0f;
-
-            // Next: SEARCH (find target stable)
-            trackingState = STATE_SEARCH;
-
-            // reset init vars
-            init_start_time = 0.0f;
-            init_yaw_accumulated = 0.0f;
-
-            rotation_started = false;
-            rotation_start_time = 0.0f;
-            prev_yaw_inited = false;
-
-            return;
-        }
-
-        return;
-    }
-
-    // ---------------------------------------------------
-    // 2) SEARCH: if target visible -> aim yaw; else slow yaw scan.
-    //            When stable N frames -> TRACK.
-    // ---------------------------------------------------
-    if (trackingState == STATE_SEARCH) {
-        // gating to enter TRACK
-        if (target_valid) {
-            target_valid_count++;
-            if (target_valid_count >= TARGET_VALID_THRESHOLD) {
-                trackingState = STATE_TRACK;
-                track_start_time = currentTime;
-                target_valid_count = 0;
-            }
-        } else {
-            target_valid_count = 0;
-        }
-
-        // SEARCH yaw behavior
-        if (target_valid) {
-            const float dx = target_pos_world.x - pos.x;
-            const float dy = target_pos_world.y - pos.y;
-            const float yaw_to_target = atan2f(dy, dx);
-
-            const float max_yaw_step = 3.0f * (1.0f / SETPOINT_UPDATE_RATE);
-            float yaw_error = wrapAngle(yaw_to_target - yaw_set);
-            yaw_error = clampf(yaw_error, -max_yaw_step, max_yaw_step);
-
-            yaw_set = wrapAngle(yaw_set + yaw_error);
-        } else {
-            static float search_yaw_rate = 0.2f;   // rad/s
-            const float dt_setpoint = 1.0f / SETPOINT_UPDATE_RATE;
-
-            yaw_set = wrapAngle(yaw_set + search_yaw_rate * dt_setpoint);
-        }
-
-        return;
-    }
-
-    // ---------------------------------------------------
-    // 3) TRACK: follow target with stand-off R_FOLLOW, keep altitude Z_FOLLOW.
-    //           If close enough or time exceeded -> ATTACK.
-    // ---------------------------------------------------
-    if (trackingState == STATE_TRACK) {
-        // lost handling
-        if (!target_valid) {
-            if (last_target_lost_time == 0.0f) last_target_lost_time = currentTime;
-            if (currentTime - last_target_lost_time > TARGET_LOST_TIMEOUT) {
-                trackingState = STATE_SEARCH;
-                last_target_lost_time = 0.0f;
-                target_valid_count = 0;
-            }
-            return;
-        }
-        last_target_lost_time = 0.0f;
-
-        const float dx = target_pos_world.x - pos.x;
-        const float dy = target_pos_world.y - pos.y;
-        const float distance_2d = sqrtf(dx * dx + dy * dy);
-
-        const bool should_attack =
-            (distance_2d < ATTACK_DISTANCE) ||
-            (track_start_time > 0.0f && (currentTime - track_start_time) > TRACK_TO_ATTACK_TIME);
-
-        if (should_attack) {
-            trackingState = STATE_ATTACK;
-            track_start_time = 0.0f;
-            // do not return: allow ATTACK to run next tick
-        }
-
-        const float yaw_to_target = atan2f(dy, dx);
-
-        // yaw set with limited step
-        const float max_yaw_step = 10.0f * (1.0f / SETPOINT_UPDATE_RATE);
-        float yaw_error = wrapAngle(yaw_to_target - yaw_set);
-        if (fabsf(yaw_error) < 0.05f) {
-            yaw_set = yaw_to_target;
-        } else {
-            yaw_error = clampf(yaw_error, -max_yaw_step, max_yaw_step);
-            yaw_set = wrapAngle(yaw_set + yaw_error);
-        }
-
-        // stand-off position behind the line-of-sight
-        const float X_des = target_pos_world.x - R_FOLLOW * cosf(yaw_set);
-        const float Y_des = target_pos_world.y - R_FOLLOW * sinf(yaw_set);
-        const float Z_des = Z_FOLLOW;
-
-        const float max_step = VSP_MAX * (1.0f / SETPOINT_UPDATE_RATE);
-        X_set = slewRate(X_set, X_des, max_step);
-        Y_set = slewRate(Y_set, Y_des, max_step);
-        Z_set = slewRate(Z_set, Z_des, max_step);
-
-        return;
-    }
-
-    // ---------------------------------------------------
-    // 4) ATTACK: dive into target position and lower altitude near target.
-    // ---------------------------------------------------
-    // (trackingState == STATE_ATTACK)
-    if (!target_valid) {
-        if (last_target_lost_time == 0.0f) last_target_lost_time = currentTime;
-        if (currentTime - last_target_lost_time > TARGET_LOST_TIMEOUT) {
-            trackingState = STATE_SEARCH;
-            last_target_lost_time = 0.0f;
-            target_valid_count = 0;
-        }
-        return;
-    }
-    last_target_lost_time = 0.0f;
-
-    const float dx = target_pos_world.x - pos.x;
-    const float dy = target_pos_world.y - pos.y;
-    const float distance_2d = sqrtf(dx * dx + dy * dy);
-
-    // If target runs away, go back TRACK
-    if (distance_2d > ATTACK_DISTANCE * 1.8f) {
-        trackingState = STATE_TRACK;
-        track_start_time = currentTime;
-        return;
-    }
-
-    const float yaw_to_target = atan2f(dy, dx);
-
-    const float max_yaw_step = 20.0f * (1.0f / SETPOINT_UPDATE_RATE);
-    float yaw_error = wrapAngle(yaw_to_target - yaw_set);
-    if (fabsf(yaw_error) < 0.05f) {
-        yaw_set = yaw_to_target;
-    } else {
-        yaw_error = clampf(yaw_error, -max_yaw_step, max_yaw_step);
-        yaw_set = wrapAngle(yaw_set + yaw_error);
-    }
-
-    float X_des = target_pos_world.x;
-    float Y_des = target_pos_world.y;
-    float Z_des = target_pos_world.z + ATTACK_Z_OFFSET;
-    if (Z_des < 0.15f) Z_des = 0.15f;
-
-    const float max_step_xy = VSP_ATTACK   * (1.0f / SETPOINT_UPDATE_RATE);
-    const float max_step_z  = VSP_ATTACK_Z * (1.0f / SETPOINT_UPDATE_RATE);
-
-    X_set = slewRate(X_set, X_des, max_step_xy);
-    Y_set = slewRate(Y_set, Y_des, max_step_xy);
-    Z_set = slewRate(Z_set, Z_des, max_step_z);
+static void resetAllPids() {
+    pidX.reset(); pidY.reset(); pidZ.reset();
+    pidVx.reset(); pidVy.reset(); pidVz.reset();
+    pidRoll.reset(); pidPitch.reset(); pidYaw.reset();
+    pidRollRate.reset(); pidPitchRate.reset(); pidYawRate.reset();
 }
-
 // =======================================================
 // Low-level control
 // =======================================================
@@ -484,8 +228,9 @@ void ctrlpostoRates() {
 }
 
 void ctrlAttitudeToRates() {
-    const float er = roll_set  - attitude.getRoll();
-    const float ep = pitch_set - attitude.getPitch();
+    // Use filtered IMU angles to reduce noise
+    const float er = roll_set  - roll_H_filtered;
+    const float ep = pitch_set - pitch_H_filtered;
 
     const float rate_roll_set  = clampf(pidRoll.update(er, dt),  -MAX_RATE, MAX_RATE);
     const float rate_pitch_set = clampf(pidPitch.update(ep, dt), -MAX_RATE, MAX_RATE);
@@ -501,15 +246,8 @@ void ctrlAttitudeToRates() {
 }
 
 void ctrlYawToTorque() {
-    float rate_yaw_set = 0.0f;
-
-    // INIT yaw scan override (only during STATE_INIT scan)
-    if (trackingState == STATE_INIT && init_scan_yaw_active) {
-        rate_yaw_set = clampf(init_scan_yaw_rate, -MAX_YAW_RATE, MAX_YAW_RATE);
-    } else {
-        const float er_yaw = wrapAngle(yaw_set - yaw_H_filtered);
-        rate_yaw_set = clampf(pidYaw.update(er_yaw, dt), -MAX_YAW_RATE, MAX_YAW_RATE);
-    }
+    const float er_yaw = wrapAngle(yaw_set - yaw_H_filtered);
+    const float rate_yaw_set = clampf(pidYaw.update(er_yaw, dt), -MAX_YAW_RATE, MAX_YAW_RATE);
 
     const float error_yaw_rate = rate_yaw_set - gyro.z;
     target_yaw = pidYawRate.update(error_yaw_rate, dt);
@@ -535,60 +273,40 @@ void mixToMotors() {
 // =======================================================
 void control() {
     if (!armed) {
-        // When disarmed: reset mission init on next arm
-        trackingState = STATE_INIT;
-        init_start_time = 0.0f;
-        init_yaw_accumulated = 0.0f;
-        init_scan_yaw_active = false;
-        init_scan_yaw_rate = 0.0f;
+        resetAllPids();
+        // Reset heart trajectory when disarmed
+        if (heart_active) {
+            heart_active = false;
+            heart_start_time = 0.0f;
+        }
         return;
-    }
-
-    // Detect rising edge of arm to reset INIT cleanly
-    static bool was_armed = false;
-    if (armed && !was_armed) {
-        trackingState = STATE_INIT;
-        init_start_time = 0.0f;
-        init_yaw_accumulated = 0.0f;
-        init_scan_yaw_active = false;
-        init_scan_yaw_rate = 0.0f;
-
-        target_valid_count = 0;
-        last_target_lost_time = 0.0f;
-        track_start_time = 0.0f;
-        setpoint_update_accum = 0.0f;
-    }
-    was_armed = armed;
-
-    // Mission setpoints update at fixed rate
-    setpoint_update_accum += dt;
-    const float update_period = 1.0f / SETPOINT_UPDATE_RATE;
-    if (setpoint_update_accum >= update_period) {
-        updateTargetTracking();
-        setpoint_update_accum = 0.0f;
     }
 
     // Always altitude control
     ctrlAltitudeToThrottle();
 
-    // XY position control only after INIT completes
-    if (trackingState != STATE_INIT) {
-        ctrlpostoRates();
-    } else {
-        // During INIT: keep level (no XY tilt)
-        roll_set  = 0.0f;
-        pitch_set = 0.0f;
-    }
-
-    // Attitude controller selection
-    if (strcmp(controller_mode, "stick") == 0 && trackingState != STATE_INIT) {
+    // Mode selection: stick = attitude control, auto = position control
+    if (strcmp(controller_mode, "stick") == 0) {
+        // STICK MODE: Direct attitude control via roll_set, pitch_set, yaw_set from slider
+        // Do NOT control position - roll_set, pitch_set come from slider (rc command)
         ctrlAttitudeToRates();
     } else {
+        // AUTO MODE: Position control via X_set, Y_set, Z_set from Qt
+        // Update heart trajectory if active (overrides X_set, Y_set from Qt)
+        if (heart_active) {
+            updateHeartTrajectory();
+        }
+        // Otherwise, X_set, Y_set, Z_set, yaw_set are set from Qt via UDP
+        
+        // XY position control - calculates roll_set, pitch_set from X_set, Y_set
+        ctrlpostoRates();
+        
+        // Use PDPI controller for attitude
         target_roll  = pdpiRoll.updateCtrl(dt, roll_set,  attitude.getRoll(),  gyro.x);
         target_pitch = pdpiPitch.updateCtrl(dt, pitch_set, attitude.getPitch(), gyro.y);
     }
 
-    // Yaw always active (INIT scan uses override inside ctrlYawToTorque)
+    // Yaw control
     ctrlYawToTorque();
 
     // Motor mix

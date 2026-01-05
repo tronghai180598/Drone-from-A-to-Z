@@ -64,7 +64,6 @@ CMAKE_BINARY_DIR = /home/haipham/Downloads/drone/uav_plugin/build
 
 # The main recursive "all" target.
 all: CMakeFiles/uav_plugin.dir/all
-all: CMakeFiles/random_robot_plugin.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -73,7 +72,6 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/uav_plugin.dir/clean
-clean: CMakeFiles/random_robot_plugin.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -83,7 +81,7 @@ clean: CMakeFiles/random_robot_plugin.dir/clean
 CMakeFiles/uav_plugin.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/uav_plugin.dir/build.make CMakeFiles/uav_plugin.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/uav_plugin.dir/build.make CMakeFiles/uav_plugin.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/haipham/Downloads/drone/uav_plugin/build/CMakeFiles --progress-num=3,4,5,6 "Built target uav_plugin"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/haipham/Downloads/drone/uav_plugin/build/CMakeFiles --progress-num=1,2,3,4 "Built target uav_plugin"
 .PHONY : CMakeFiles/uav_plugin.dir/all
 
 # Build rule for subdir invocation for target.
@@ -101,32 +99,6 @@ uav_plugin: CMakeFiles/uav_plugin.dir/rule
 CMakeFiles/uav_plugin.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/uav_plugin.dir/build.make CMakeFiles/uav_plugin.dir/clean
 .PHONY : CMakeFiles/uav_plugin.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/random_robot_plugin.dir
-
-# All Build rule for target.
-CMakeFiles/random_robot_plugin.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/haipham/Downloads/drone/uav_plugin/build/CMakeFiles --progress-num=1,2 "Built target random_robot_plugin"
-.PHONY : CMakeFiles/random_robot_plugin.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/random_robot_plugin.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/haipham/Downloads/drone/uav_plugin/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/random_robot_plugin.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/haipham/Downloads/drone/uav_plugin/build/CMakeFiles 0
-.PHONY : CMakeFiles/random_robot_plugin.dir/rule
-
-# Convenience name for target.
-random_robot_plugin: CMakeFiles/random_robot_plugin.dir/rule
-.PHONY : random_robot_plugin
-
-# clean rule for target.
-CMakeFiles/random_robot_plugin.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/random_robot_plugin.dir/build.make CMakeFiles/random_robot_plugin.dir/clean
-.PHONY : CMakeFiles/random_robot_plugin.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
