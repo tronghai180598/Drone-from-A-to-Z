@@ -44,10 +44,10 @@ inline void kalman_for_angle(float& KalmanState,
                       float  KalmanMeasurement,
                       float  dt) {
     KalmanState = KalmanState + dt * KalmanInput;
-    KalmanUncertainty = KalmanUncertainty + dt * dt * 4.0f * 4.0f;
+    KalmanUncertainty = KalmanUncertainty + dt * dt * 1.0f * 1.0f;
 
     float KalmanGain = KalmanUncertainty * 1.0f /
-                       (1.0f * KalmanUncertainty + 3.0f * 3.0f);
+                       (1.0f * KalmanUncertainty + 0.1f * 0.1f);
 
     KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - KalmanState);
     KalmanUncertainty = (1.0f - KalmanGain) * KalmanUncertainty;

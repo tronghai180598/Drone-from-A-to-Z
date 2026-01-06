@@ -47,6 +47,11 @@ float __micros;
 float dt;
 float mass;
 
+// Gyro low-pass filter parameters
+static constexpr float GYRO_LPF_CUTOFF_HZ = 40.0f;  // Cutoff frequency in Hz (adjustable)
+static Vector gyro_filtered{0, 0, 0};
+static bool gyro_filter_initialized = false;
+
 // IMU variables (defined here to avoid multiple definition)
 float roll_H = 0.0f, pitch_H = 0.0f, yaw_H = 0.0f;
 float roll_H_filtered = 0.0f, pitch_H_filtered = 0.0f, yaw_H_filtered = 0.0f;
@@ -127,6 +132,9 @@ public:
 	void OnReset() {
 		attitude = Quaternion();
 		armed = false;
+		// Reset gyro filter
+		gyro_filter_initialized = false;
+		gyro_filtered = Vector(0, 0, 0);
 		// Close and reopen log file on reset
 		if (logFileOpened) {
 			logFile.close();
@@ -163,7 +171,22 @@ public:
 		// Update mass
 		mass = (float)body->GetInertial()->Mass();
 		// Read IMU data
-		gyro = Vector(imu->AngularVelocity().X(), imu->AngularVelocity().Y(), imu->AngularVelocity().Z());
+		Vector gyro_raw = Vector(imu->AngularVelocity().X(), imu->AngularVelocity().Y(), imu->AngularVelocity().Z());
+		
+		// Apply low-pass filter to gyro
+		if (!gyro_filter_initialized) {
+			gyro_filtered = gyro_raw;
+			gyro_filter_initialized = true;
+		} else {
+			// Low-pass filter: alpha = dt / (dt + tau), where tau = 1/(2*pi*fc)
+			const float tau = 1.0f / (2.0f * M_PI * GYRO_LPF_CUTOFF_HZ);
+			const float alpha = dt / (dt + tau);
+			gyro_filtered.x = alpha * gyro_raw.x + (1.0f - alpha) * gyro_filtered.x;
+			gyro_filtered.y = alpha * gyro_raw.y + (1.0f - alpha) * gyro_filtered.y;
+			gyro_filtered.z = alpha * gyro_raw.z + (1.0f - alpha) * gyro_filtered.z;
+		}
+		gyro = gyro_filtered;  // Use filtered gyro for control
+		
 		acc = Vector(imu->LinearAcceleration().X(), imu->LinearAcceleration().Y(), imu->LinearAcceleration().Z());
 		
 		// Update attitude from IMU (with noise) - this calculates roll_H, pitch_H from accelerometer

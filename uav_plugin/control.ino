@@ -266,7 +266,6 @@ void mixToMotors() {
 
     for (int i = 0; i < 4; i++) motors[i] = clampf(motors[i], 0.0f, 1.0f);
 }
-
 // =======================================================
 // Main control loop
 // =======================================================
@@ -280,34 +279,26 @@ void control() {
         }
         return;
     }
-
     // Always altitude control
     ctrlAltitudeToThrottle();
 
     // Mode selection: stick = attitude control, auto = position control
     if (strcmp(controller_mode, "stick") == 0) {
-        // STICK MODE: Direct attitude control via roll_set, pitch_set, yaw_set from slider
-        // Do NOT control position - roll_set, pitch_set come from slider (rc command)
         ctrlAttitudeToRates();
     } else {
-        // AUTO MODE: Position control via X_set, Y_set, Z_set from Qt
-        // Update heart trajectory if active (overrides X_set, Y_set from Qt)
+
         if (heart_active) {
             updateHeartTrajectory();
         }
-        // Otherwise, X_set, Y_set, Z_set, yaw_set are set from Qt via UDP
-        
-        // XY position control - calculates roll_set, pitch_set from X_set, Y_set
         ctrlpostoRates();
         
         // Use PDPI controller for attitude
-        target_roll  = pdpiRoll.updateCtrl(dt, roll_set,  attitude.getRoll(),  gyro.x);
-        target_pitch = pdpiPitch.updateCtrl(dt, pitch_set, attitude.getPitch(), gyro.y);
+        target_roll  = pdpiRoll.updateCtrl(dt, roll_set,  roll_H_filtered,  gyro.x);
+        target_pitch = pdpiPitch.updateCtrl(dt, pitch_set, pitch_H_filtered, gyro.y);
     }
 
     // Yaw control
     ctrlYawToTorque();
-
     // Motor mix
     mixToMotors();
 }
