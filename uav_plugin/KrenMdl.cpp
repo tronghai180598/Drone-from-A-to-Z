@@ -16,7 +16,7 @@ void saturatePi(float& val){
 float my_rand(float min, float max){ return ( rand() * (max - min)) / RAND_MAX + min; }
 
 KrenMdl::KrenMdl(float Tf, float Tv, float Tm) { mTf = Tf; mTv = Tv; mTm = Tm; mFi = 0; mVi = 0; mAc = 0; };
-KrenMdl::KrenMdl() {  mTf = 0.2; mTv = 0.5; mTm = 0.05; mFi = 0; mVi = 0; mAc = 0;};
+KrenMdl::KrenMdl() {  mTf = 0.05; mTv = 0.2; mTm = 0.05; mFi = 0; mVi = 0; mAc = 0;};
 // For PD: mTf = 0.2; mTv = 0.5; mTm = 0.05
 
 void KrenMdl::setParam (float Tf, float Tv, float Tm) { mTf = Tf; mTv = Tv; mTm = Tm;}

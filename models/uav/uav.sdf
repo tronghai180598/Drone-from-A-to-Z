@@ -30,14 +30,14 @@
         <update_rate>1000</update_rate>
         <imu>
           <angular_velocity>
-            <x><noise type="gaussian"><stddev>0.1</stddev></noise></x>
-            <y><noise type="gaussian"><stddev>0.2</stddev></noise></y>
-            <z><noise type="gaussian"><stddev>0.2</stddev></noise></z>
+            <x><noise type="gaussian"><stddev>0.0</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0.0</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0.0</stddev></noise></z>
           </angular_velocity>
           <linear_acceleration>
-            <x><noise type="gaussian"><stddev>0.2</stddev></noise></x>
-            <y><noise type="gaussian"><stddev>0.2</stddev></noise></y>
-            <z><noise type="gaussian"><stddev>0.2</stddev></noise></z>
+            <x><noise type="gaussian"><stddev>0.0</stddev></noise></x>
+            <y><noise type="gaussian"><stddev>0.0</stddev></noise></y>
+            <z><noise type="gaussian"><stddev>0.0</stddev></noise></z>
           </linear_acceleration>
         </imu>
       </sensor>

@@ -19,12 +19,10 @@ extern float roll_set;
 extern float pitch_set;
 extern float yaw_set;
 extern char controller_mode[16];  // Controller mode: "stick" or "auto"
+extern char attitude_mode[16];    // Attitude control mode: "pid" or "pdpi"
 extern Quaternion attitude;  // Current attitude from UavPlugin.cpp
 extern float Z_set;
-extern float X_set;
-extern float Y_set;
 extern float mass;
-extern bool heart_active;
 
 // Map variable names to their pointers and descriptions
 struct VariableInfo {
@@ -37,8 +35,6 @@ std::map<std::string, VariableInfo> variables;
 
 // Initialize variable map
 void initVariables() {
-    variables["x"] = {&X_set, "X position setpoint", "m"};
-    variables["y"] = {&Y_set, "Y position setpoint", "m"};
     variables["z"] = {&Z_set, "Altitude setpoint", "m"};
     variables["roll_set"] = {&roll_set, "Roll angle setpoint", "rad"};
     variables["pitch_set"] = {&pitch_set, "Pitch angle setpoint", "rad"};
@@ -99,32 +95,6 @@ void executeCommand(const std::string& line) {
     } else if (cmd == "disarm") {
         armed = false;
         std::cout << "[CLI] >>> DISARMED - UAV will land!\n";
-    }   else if (cmd == "rc") {
-        float r, p, y;
-        if (iss >> r >> p >> y) {
-            // Clamp to ±45 degrees (±0.785 rad) for roll and pitch
-            const float MAX_ATTITUDE_RAD = 0.785398163f;  // 45 degrees in radians
-            // Inline clamp function
-            auto clamp = [](float v, float lo, float hi) { return (v < lo) ? lo : (v > hi) ? hi : v; };
-            roll_set  = clamp(r, -MAX_ATTITUDE_RAD, MAX_ATTITUDE_RAD);
-            pitch_set = clamp(p, -MAX_ATTITUDE_RAD, MAX_ATTITUDE_RAD);
-            yaw_set   = y;  // Yaw can be wider range
-            
-            // Get actual roll and pitch from attitude quaternion
-            float actual_roll  = attitude.getRoll();
-            float actual_pitch = attitude.getPitch();
-            float actual_yaw   = attitude.getYaw();
-            
-            std::cout << "[CLI] >>> RC setpoints: roll_set=" << roll_set
-                      << " pitch_set=" << pitch_set
-                      << " yaw_set=" << yaw_set << "\n";
-            std::cout << "[CLI] >>> Actual angles: roll=" << actual_roll
-                      << " pitch=" << actual_pitch
-                      << " yaw=" << actual_yaw << "\n";
-            std::cout.flush();  // Force output immediately
-        } else {
-            std::cout << "[CLI] Error: Use 'rc <roll_rad> <pitch_rad> <yaw_rad>'\n";
-        }
     } else if (cmd == "mode") {
         std::string mode;
         if (iss >> mode) {
@@ -138,6 +108,20 @@ void executeCommand(const std::string& line) {
             }
         } else {
             std::cout << "[CLI] Current controller mode: " << controller_mode << "\n";
+        }
+    } else if (cmd == "attitude") {
+        std::string mode;
+        if (iss >> mode) {
+            if (mode == "pid" || mode == "pdpi") {
+                strncpy(attitude_mode, mode.c_str(), sizeof(attitude_mode) - 1);
+                attitude_mode[sizeof(attitude_mode) - 1] = '\0';
+                std::cout << "[CLI] >>> Attitude control mode set to: " << attitude_mode << "\n";
+                std::cout.flush();
+            } else {
+                std::cout << "[CLI] Error: Invalid attitude mode. Use 'attitude pid' or 'attitude pdpi'\n";
+            }
+        } else {
+            std::cout << "[CLI] Current attitude control mode: " << attitude_mode << "\n";
         }
     } else if (cmd == "set") {
         std::string varName;
@@ -162,24 +146,9 @@ void executeCommand(const std::string& line) {
         }
     } else if (cmd == "list") {
         listVariables();
-    } else if (cmd == "heart") {
-        std::string state;
-        if (iss >> state) {
-            if (state == "on") {
-                heart_active = true;
-                std::cout << "[CLI] >>> Heart trajectory ACTIVATED\n";
-            } else if (state == "off") {
-                heart_active = false;
-                std::cout << "[CLI] >>> Heart trajectory DEACTIVATED\n";
-            } else {
-                std::cout << "[CLI] Error: Use 'heart on' or 'heart off'\n";
-            }
-        } else {
-            std::cout << "[CLI] Heart trajectory: " << (heart_active ? "ON" : "OFF") << "\n";
-        }
     } else if (!line.empty()) {
         std::cout << "[CLI] Unknown command: '" << line << "'\n";
-        std::cout << "[CLI] Commands: arm, disarm, set <var> <value>, get <var>, list, heart <on/off>\n";
+        std::cout << "[CLI] Commands: arm, disarm, mode <stick/auto>, set <var> <value>, get <var>, list\n";
     }
 }
 
@@ -197,10 +166,13 @@ void simCliThread() {
     
     std::cout << "[CLI] Ready! Commands:\n";
     std::cout << "[CLI]   - arm/disarm: control UAV\n";
-    std::cout << "[CLI]   - set <var> <value>: set variable (e.g., 'set z 3')\n";
+    std::cout << "[CLI]   - mode <stick/auto>: set controller mode\n";
+    std::cout << "[CLI]   - attitude <pid/pdpi>: set attitude control mode (PID or PDPI)\n";
+    std::cout << "[CLI]   - set <var> <value>: set variable (e.g., 'set z 3' or 'set roll_set 0.1')\n";
     std::cout << "[CLI]   - get <var>: get variable value\n";
     std::cout << "[CLI]   - list: list all variables\n";
     std::cout << "[CLI] Write commands to: " << cmdFile << "\n";
+    std::cout << "[CLI] Note: RC control via joystick - Stick mode works without arm!\n";
     std::cout.flush();
     
     while (true) {

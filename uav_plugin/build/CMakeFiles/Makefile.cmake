@@ -18,6 +18,8 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake"
   "/usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfigVersion.cmake"
   "/usr/lib/x86_64-linux-gnu/cmake/BoostDetectToolset-1.74.0.cmake"
+  "/usr/lib/x86_64-linux-gnu/cmake/SDL2/sdl2-config-version.cmake"
+  "/usr/lib/x86_64-linux-gnu/cmake/SDL2/sdl2-config.cmake"
   "/usr/lib/x86_64-linux-gnu/cmake/TBB/TBBConfig.cmake"
   "/usr/lib/x86_64-linux-gnu/cmake/TBB/TBBConfigVersion.cmake"
   "/usr/lib/x86_64-linux-gnu/cmake/TBB/TBBTargets-none.cmake"

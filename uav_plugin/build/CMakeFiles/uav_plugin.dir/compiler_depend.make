@@ -3205,11 +3205,114 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
   /usr/include/c++/11/cfloat \
   ../quaternion.h \
   ../cli.cpp \
+  ../lowpass_filter.h \
   ../control.ino \
   ../pid.h \
   ../KrenCtrl.hpp \
-  ../KrenMdl.hpp
+  ../KrenMdl.hpp \
+  ../rc_sim_all.hpp \
+  /usr/include/SDL2/SDL.h \
+  /usr/include/SDL2/SDL_main.h \
+  /usr/include/SDL2/SDL_stdinc.h \
+  /usr/include/SDL2/SDL_config.h \
+  /usr/include/x86_64-linux-gnu/SDL2/_real_SDL_config.h \
+  /usr/include/SDL2/SDL_platform.h \
+  /usr/include/SDL2/begin_code.h \
+  /usr/include/SDL2/close_code.h \
+  /usr/include/SDL2/SDL_assert.h \
+  /usr/include/SDL2/SDL_atomic.h \
+  /usr/include/SDL2/SDL_platform.h \
+  /usr/include/SDL2/SDL_audio.h \
+  /usr/include/SDL2/SDL_error.h \
+  /usr/include/SDL2/SDL_endian.h \
+  /usr/include/SDL2/SDL_mutex.h \
+  /usr/include/SDL2/SDL_thread.h \
+  /usr/include/SDL2/SDL_rwops.h \
+  /usr/include/SDL2/SDL_clipboard.h \
+  /usr/include/SDL2/SDL_cpuinfo.h \
+  /usr/include/SDL2/SDL_events.h \
+  /usr/include/SDL2/SDL_video.h \
+  /usr/include/SDL2/SDL_pixels.h \
+  /usr/include/SDL2/SDL_rect.h \
+  /usr/include/SDL2/SDL_surface.h \
+  /usr/include/SDL2/SDL_blendmode.h \
+  /usr/include/SDL2/SDL_keyboard.h \
+  /usr/include/SDL2/SDL_keycode.h \
+  /usr/include/SDL2/SDL_scancode.h \
+  /usr/include/SDL2/SDL_mouse.h \
+  /usr/include/SDL2/SDL_joystick.h \
+  /usr/include/SDL2/SDL_gamecontroller.h \
+  /usr/include/SDL2/SDL_sensor.h \
+  /usr/include/SDL2/SDL_quit.h \
+  /usr/include/SDL2/SDL_gesture.h \
+  /usr/include/SDL2/SDL_touch.h \
+  /usr/include/SDL2/SDL_filesystem.h \
+  /usr/include/SDL2/SDL_haptic.h \
+  /usr/include/SDL2/SDL_hidapi.h \
+  /usr/include/SDL2/SDL_hints.h \
+  /usr/include/SDL2/SDL_loadso.h \
+  /usr/include/SDL2/SDL_log.h \
+  /usr/include/SDL2/SDL_messagebox.h \
+  /usr/include/SDL2/SDL_metal.h \
+  /usr/include/SDL2/SDL_power.h \
+  /usr/include/SDL2/SDL_render.h \
+  /usr/include/SDL2/SDL_shape.h \
+  /usr/include/SDL2/SDL_system.h \
+  /usr/include/SDL2/SDL_timer.h \
+  /usr/include/SDL2/SDL_version.h \
+  /usr/include/SDL2/SDL_locale.h \
+  /usr/include/SDL2/SDL_misc.h
 
+
+/usr/include/SDL2/SDL_misc.h:
+
+/usr/include/SDL2/SDL_system.h:
+
+/usr/include/SDL2/SDL_shape.h:
+
+/usr/include/SDL2/SDL_render.h:
+
+/usr/include/SDL2/SDL_metal.h:
+
+/usr/include/SDL2/SDL_messagebox.h:
+
+/usr/include/SDL2/SDL_log.h:
+
+/usr/include/SDL2/SDL_hints.h:
+
+/usr/include/SDL2/SDL_hidapi.h:
+
+/usr/include/SDL2/SDL_haptic.h:
+
+/usr/include/SDL2/SDL_sensor.h:
+
+/usr/include/SDL2/SDL_gamecontroller.h:
+
+/usr/include/SDL2/SDL_mouse.h:
+
+/usr/include/SDL2/SDL_scancode.h:
+
+/usr/include/SDL2/SDL_blendmode.h:
+
+/usr/include/SDL2/SDL_surface.h:
+
+/usr/include/SDL2/SDL_rect.h:
+
+/usr/include/SDL2/SDL_clipboard.h:
+
+/usr/include/SDL2/SDL_thread.h:
+
+/usr/include/SDL2/SDL_mutex.h:
+
+/usr/include/SDL2/SDL_endian.h:
+
+/usr/include/SDL2/SDL_audio.h:
+
+/usr/include/SDL2/close_code.h:
+
+/usr/include/SDL2/SDL_config.h:
+
+/usr/include/SDL2/SDL.h:
 
 ../cli.cpp:
 
@@ -3258,6 +3361,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/gazebo-11/gazebo/physics/SurfaceParams.hh:
 
 /usr/include/gazebo-11/gazebo/physics/SphereShape.hh:
+
+/usr/include/SDL2/SDL_rwops.h:
 
 /usr/include/gazebo-11/gazebo/physics/WorldState.hh:
 
@@ -3413,6 +3518,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/ignition/msgs5/ignition/msgs/logical_camera_image.pb.h:
 
+/usr/include/SDL2/SDL_platform.h:
+
 /usr/include/ignition/msgs5/ignition/msgs/log_playback_stats.pb.h:
 
 /usr/include/ignition/msgs5/ignition/msgs/log_playback_control.pb.h:
@@ -3452,6 +3559,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/ignition/msgs5/ignition/msgs/entity_factory_v.pb.h:
 
 /usr/include/ignition/msgs5/ignition/msgs/projector.pb.h:
+
+/usr/include/SDL2/SDL_stdinc.h:
 
 /usr/include/ignition/msgs5/ignition/msgs/logical_camera_sensor.pb.h:
 
@@ -3534,6 +3643,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/ignition/msgs5/ignition/msgs/config.hh:
 
 /usr/include/ignition/msgs5/ignition/msgs.hh:
+
+/usr/include/SDL2/SDL_error.h:
 
 /usr/include/ignition/math6/ignition/math/AxisAlignedBox.hh:
 
@@ -4051,6 +4162,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/thread/lock_options.hpp:
 
+/usr/include/SDL2/SDL_timer.h:
+
 /usr/include/boost/regex/v4/c_regex_traits.hpp:
 
 /usr/include/boost/thread/detail/lockable_wrapper.hpp:
@@ -4058,6 +4171,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/boost/asio/detail/impl/reactive_descriptor_service.ipp:
 
 /usr/include/boost/move/detail/meta_utils_core.hpp:
+
+/usr/include/SDL2/SDL_keyboard.h:
 
 /usr/include/boost/move/detail/meta_utils.hpp:
 
@@ -4298,6 +4413,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/boost/asio/ip/impl/network_v6.hpp:
 
 /usr/include/boost/mpl/aux_/config/eti.hpp:
+
+/usr/include/SDL2/SDL_joystick.h:
 
 /usr/include/boost/container_hash/hash.hpp:
 
@@ -4583,6 +4700,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/c++/11/bits/locale_facets_nonio.h:
 
+/usr/include/SDL2/SDL_assert.h:
+
 /usr/include/boost/date_time/c_time.hpp:
 
 /usr/include/boost/predef.h:
@@ -4714,6 +4833,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/boost/thread/futures/future_status.hpp:
 
 /usr/include/c++/11/pstl/glue_numeric_defs.h:
+
+/usr/include/SDL2/SDL_power.h:
 
 /usr/include/ignition/math6/gz/math/Triangle.hh:
 
@@ -5527,6 +5648,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/thread/detail/thread_heap_alloc.hpp:
 
+/usr/include/SDL2/SDL_loadso.h:
+
 /usr/include/c++/11/bits/regex.tcc:
 
 /usr/lib/gcc/x86_64-linux-gnu/11/include/float.h:
@@ -5762,6 +5885,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/boost/asio/detail/buffer_resize_guard.hpp:
 
 /usr/include/boost/mpl/bool.hpp:
+
+/usr/include/SDL2/SDL_video.h:
 
 /usr/include/boost/preprocessor/list/fold_left.hpp:
 
@@ -6015,6 +6140,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/gazebo-11/gazebo/common/CommonIface.hh:
 
+/usr/include/x86_64-linux-gnu/SDL2/_real_SDL_config.h:
+
 /usr/include/boost/preprocessor/cat.hpp:
 
 /usr/include/ignition/math6/ignition/math/Cylinder.hh:
@@ -6231,6 +6358,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/mpl/aux_/integral_wrapper.hpp:
 
+/usr/include/SDL2/SDL_version.h:
+
 /usr/include/c++/11/cerrno:
 
 /usr/include/ignition/msgs5/ignition/msgs/track_visual.pb.h:
@@ -6246,6 +6375,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/c++/11/bits/locale_classes.h:
 
 /usr/include/ignition/math6/gz/math/detail/Box.hh:
+
+/usr/include/SDL2/SDL_quit.h:
 
 /usr/include/boost/date_time/posix_time/posix_time_system.hpp:
 
@@ -6489,6 +6620,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/predef/os/haiku.h:
 
+/usr/include/SDL2/SDL_locale.h:
+
 /usr/include/boost/asio/basic_socket_iostream.hpp:
 
 /usr/include/boost/predef/os/ios.h:
@@ -6707,6 +6840,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/atomic/detail/intptr.hpp:
 
+/usr/include/SDL2/SDL_filesystem.h:
+
 /usr/include/boost/atomic/detail/float_sizes.hpp:
 
 /usr/include/boost/atomic/detail/caps_arch_gcc_x86.hpp:
@@ -6714,6 +6849,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/gazebo-11/gazebo/gazebo.hh:
 
 /usr/include/boost/atomic/detail/type_traits/is_floating_point.hpp:
+
+/usr/include/SDL2/begin_code.h:
 
 /usr/include/gazebo-11/gazebo/msgs/heightmapgeom.pb.h:
 
@@ -6777,6 +6914,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/atomic/detail/extra_ops_emulated.hpp:
 
+../lowpass_filter.h:
+
 /usr/include/boost/iterator/iterator_categories.hpp:
 
 /usr/include/boost/asio/ip/address_v6.hpp:
@@ -6830,6 +6969,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/sdformat-9.7/sdf/Geometry.hh:
 
 /usr/include/boost/type_traits/make_void.hpp:
+
+/usr/include/SDL2/SDL_touch.h:
 
 /usr/include/boost/atomic/ipc_atomic_flag.hpp:
 
@@ -7511,6 +7652,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/asio/detail/impl/epoll_reactor.ipp:
 
+/usr/include/SDL2/SDL_keycode.h:
+
 /usr/include/x86_64-linux-gnu/libavutil/cpu.h:
 
 /usr/include/ignition/msgs5/ignition/msgs/world_modify.pb.h:
@@ -7526,6 +7669,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/boost/thread/futures/launch.hpp:
 
 /usr/include/x86_64-linux-gnu/libavutil/frame.h:
+
+/usr/include/SDL2/SDL_events.h:
 
 /usr/include/boost/atomic/detail/pause.hpp:
 
@@ -7887,6 +8032,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512pfintrin.h:
 
+../rc_sim_all.hpp:
+
 /usr/include/boost/mpl/aux_/config/gcc.hpp:
 
 /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512cdintrin.h:
@@ -8233,11 +8380,15 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/asio/async_result.hpp:
 
+/usr/include/SDL2/SDL_gesture.h:
+
 /usr/include/boost/asio/detail/impl/service_registry.hpp:
 
 /usr/include/boost/asio/impl/execution_context.ipp:
 
 /usr/include/boost/asio/generic/detail/impl/endpoint.ipp:
+
+/usr/include/SDL2/SDL_main.h:
 
 /usr/include/boost/asio/detail/posix_thread.hpp:
 
@@ -8262,6 +8413,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/x86_64-linux-gnu/libavutil/pixdesc.h:
 
 /usr/include/boost/asio/detail/object_pool.hpp:
+
+/usr/include/SDL2/SDL_pixels.h:
 
 /usr/include/boost/asio/detail/select_interrupter.hpp:
 
@@ -8563,6 +8716,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 
 /usr/include/boost/asio/ip/resolver_base.hpp:
 
+/usr/include/SDL2/SDL_atomic.h:
+
 /usr/include/boost/asio/detail/resolver_service.hpp:
 
 /usr/include/boost/asio/detail/resolve_op.hpp:
@@ -8702,6 +8857,8 @@ CMakeFiles/uav_plugin.dir/UavPlugin.cpp.o: ../UavPlugin.cpp \
 /usr/include/oneapi/tbb/detail/_flow_graph_impl.h:
 
 /usr/include/oneapi/tbb/detail/_flow_graph_trace_impl.h:
+
+/usr/include/SDL2/SDL_cpuinfo.h:
 
 /usr/include/ignition/math6/gz/math/MovingWindowFilter.hh:
 

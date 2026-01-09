@@ -1,15 +1,17 @@
 #pragma once
 #include <cmath>
+#include "lowpass_filter.h"
 
 class PID {
 public:
     float p, i, d;
     float dt;
     float windup = 100.0f;  // Default, can be set per PID
-    float derivativeFilterTau = 0.05f;  // Low-pass filter time constant for derivative (default 50ms)
+    float derivativeFilterCutoffHz = 20.0f;  // Low-pass filter cutoff frequency for derivative (default 20 Hz)
 
     float derivative;
     float integral;
+    LowPassFilter derivativeFilter;  // Low-pass filter for derivative term
 
     PID(float p, float i, float d)
         : p(p)
@@ -18,10 +20,12 @@ public:
         , dt(0.0f)
         , derivative(0.0f)
         , integral(0.0f)
+        , derivativeFilter(40.0f)  // Default 20 Hz cutoff
         , prevError(0.0f)
-        , derivativeFiltered(0.0f)
         , initialized(false)
-    {}
+    {
+        derivativeFilter.setCutoff(derivativeFilterCutoffHz);
+    }
 
     // t = thời gian tuyệt đối (ví dụ info.simTime.Double())
     float update(float error, float dt) {
@@ -42,15 +46,13 @@ public:
             if (integral >  windup) integral =  windup;
             else if (integral < -windup) integral = -windup;
 
-            // Đạo hàm (raw)
+            // Đạo hàm (raw) - filtered using LowPassFilter
             float derivativeRaw = (error - prevError) / dt;
-            float alpha = dt / (derivativeFilterTau + dt);
-            derivativeFiltered = alpha * derivativeRaw + (1.0f - alpha) * derivativeFiltered;
-            derivative = derivativeFiltered;
+            derivative = derivativeFilter.update(derivativeRaw, dt);
         } else {
             // Nếu thời gian nhảy bất thường → reset D, không bơm thêm I
             derivative = 0.0f;
-            derivativeFiltered = 0.0f;
+            derivativeFilter.reset();
         }
 
         prevError = error;
@@ -61,13 +63,17 @@ public:
     void reset() {
         integral         = 0.0f;
         derivative       = 0.0f;
-        derivativeFiltered = 0.0f;
+        derivativeFilter.reset();
         prevError        = 0.0f;
         initialized      = false;
     }
 
+    void setDerivativeFilterCutoff(float cutoffHz) {
+        derivativeFilterCutoffHz = cutoffHz;
+        derivativeFilter.setCutoff(cutoffHz);
+    }
+
 private:
     float prevError;
-    float derivativeFiltered;  // Filtered derivative value
     bool  initialized;
 };

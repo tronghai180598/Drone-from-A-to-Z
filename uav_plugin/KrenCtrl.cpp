@@ -7,20 +7,20 @@
 #define _slCtrl_Modal 2
 #define _slCtrl_Slide 3
 #define _slCtrl_MaxFs 4
-#define __SelCtrl 3
+#define __SelCtrl 1
 
 KrenCtrl::KrenCtrl(float Tf, float Tv, float Tm, float Tmi){
-  mTi = 0.2;
-  mTe = 0.01; 
+  mTi = 0.1;
+  mTe = 0.1; 
   setParam(Tf, Tv, Tm);
   mTmu = mTm;
   setCtrlParam();
 }
 KrenCtrl::KrenCtrl(){
-  mTi = 0.2;
-  mTe = 0.01; 
+  mTi = 0.1;
+  mTe = 0.1; 
   mTmu = mTm;
-  klmf = klmv = 0.1;
+  klmf = klmv = 0.05;
   setCtrlParam();
 }
 void KrenCtrl::setCtrlParam(){
@@ -28,9 +28,9 @@ void KrenCtrl::setCtrlParam(){
   // Kpv = mTe*mTv/(45.0*mTmu*mTmu);
   // Kdv = mTe*mTv/(2.0*mTmu); // SO 4--5
   // Kpf = mTf / (15 * mTmu); // MO  15-30
-  Kpv = 0.03;
-  Kdv = 0.02;
-  Kpf = 2.0;
+  Kpv = 0.01;
+  Kdv = 0.002;
+  Kpf = 1.0;
 #endif
 #if (__SelCtrl==_slCtrl_Modal)
   Kd  = mTmi / ( mTm * 2 );
@@ -160,3 +160,27 @@ return Um;
 }
 
 float KrenCtrl::GetUi() { return Um; }
+
+void KrenCtrl::reset() {
+    // Reset all internal states
+    loldVi = 0;
+    Us = 0;
+    Us_prev = 0;
+    Ui = 0;
+    mdVi = 0;
+    Uv = 0;
+    Um = 0;
+    Umm = 0;
+    erVi1 = 0;
+    oUi = 0;
+    mVid = 0;
+    mVold = 0;
+    muMd = 0;
+    uMold = 0;
+    
+    // Reset model states (from KrenMdl)
+    mFi = 0;
+    mVi = 0;
+    mAc = 0;
+    mPreAc = 0;
+}

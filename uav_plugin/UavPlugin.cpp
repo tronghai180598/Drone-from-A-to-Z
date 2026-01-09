@@ -12,10 +12,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 #include <cstring>
 
 #ifndef M_PI
@@ -28,36 +24,37 @@
 #include "cli.cpp"
 #include "vector.h"
 #include "quaternion.h"
+#include "lowpass_filter.h"
 
 #include "control.ino"
 #include "KrenCtrl.hpp"
+#include "rc_sim_all.hpp"
 
 // Global variables
 Vector gyro, acc, pos, vel;
-extern float X_set;
-extern float Y_set;
-extern float Z_set;
 extern float yaw_set;
+extern float throttle_u;
+extern float Z_set;
 extern char controller_mode[16];  // Controller mode: "stick" or "auto"
+extern char attitude_mode[16];     // Attitude control mode: "pid" or "pdpi"
 extern float target_roll;
 extern float target_pitch;
 extern class KrenCtrl pdpiRoll;
+extern class KrenCtrl pdpiPitch;
 Quaternion attitude{1,0,0,0};
 float __micros;
 float dt;
 float mass;
 
-// Gyro low-pass filter parameters
-static constexpr float GYRO_LPF_CUTOFF_HZ = 40.0f;  // Cutoff frequency in Hz (adjustable)
-static Vector gyro_filtered{0, 0, 0};
-static bool gyro_filter_initialized = false;
+// Low-pass filters for IMU data
+static LowPassFilterVector gyroFilter(40.0f);  // 40 Hz cutoff for gyro
+static LowPassFilterVector accFilter(20.0f);   // 20 Hz cutoff for accelerometer
 
 // IMU variables (defined here to avoid multiple definition)
 float roll_H = 0.0f, pitch_H = 0.0f, yaw_H = 0.0f;
 float roll_H_filtered = 0.0f, pitch_H_filtered = 0.0f, yaw_H_filtered = 0.0f;
 
 extern bool armed;
-extern bool heart_active;
 extern float motors[4];
 extern const float ONE_G;
 
@@ -72,21 +69,13 @@ private:
 	sensors::ImuSensorPtr imu;
 	event::ConnectionPtr updateConnection, resetConnection;
 	transport::NodePtr nodeHandle;
-	transport::PublisherPtr motorPub[4];
 	ofstream logFile;
 	bool logFileOpened;
 	ofstream controlLogFile;
 	bool controlLogFileOpened;
-	ofstream positionLogFile;
-	bool positionLogFileOpened;
-	
-	// UDP socket for sending position to Qt
-	int udpSocket;
-	struct sockaddr_in udpAddr;
-	
 
 public:
-	ModelFlix() : logFileOpened(false), controlLogFileOpened(false), positionLogFileOpened(false), udpSocket(-1) {}
+	ModelFlix() : logFileOpened(false), controlLogFileOpened(false) {}
 	void Load(physics::ModelPtr _parent, sdf::ElementPtr /*_sdf*/) {
 		this->model = _parent;
 		this->body = this->model->GetLink("body");
@@ -94,47 +83,21 @@ public:
 		this->updateConnection = event::Events::ConnectWorldUpdateBegin(std::bind(&ModelFlix::OnUpdate, this));
 		this->resetConnection = event::Events::ConnectWorldReset(std::bind(&ModelFlix::OnReset, this));
 		initNode();
-		initUDP();
 		initLogFile();
 		initControlLogFile();
-		initPositionLogFile();
 		std::thread(simCliThread).detach();
-		gzmsg << "UAV plugin loaded" << endl;
-	}
-	
-	void initUDP() {
-		udpSocket = socket(AF_INET, SOCK_DGRAM, 0);
-		if (udpSocket < 0) {
-			gzerr << "Failed to create UDP socket" << endl;
-			return;
-		}
 		
-		memset(&udpAddr, 0, sizeof(udpAddr));
-		udpAddr.sin_family = AF_INET;
-		udpAddr.sin_port = htons(5005);
-		udpAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-		
-		gzmsg << "UDP socket initialized for port 5005" << endl;
-	}
-	
-	void publishUDP() {
-		if (udpSocket < 0) return;
-		
-		double t = model->GetWorld()->SimTime().Double();
-		char buffer[256];
-		int len = snprintf(buffer, sizeof(buffer), "%.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f",
-			t, pos.x, pos.y, pos.z,
-			attitude.x, attitude.y, attitude.z, attitude.w);
-		
-		sendto(udpSocket, buffer, len, 0, (struct sockaddr*)&udpAddr, sizeof(udpAddr));
+		// Initialize RC joystick control
+		rc_sim::setupRC(true);
+		gzmsg << "UAV plugin loaded - RC control via joystick enabled" << endl;
 	}
 
 	void OnReset() {
 		attitude = Quaternion();
 		armed = false;
-		// Reset gyro filter
-		gyro_filter_initialized = false;
-		gyro_filtered = Vector(0, 0, 0);
+		// Reset filters
+		gyroFilter.reset();
+		accFilter.reset();
 		// Close and reopen log file on reset
 		if (logFileOpened) {
 			logFile.close();
@@ -144,13 +107,8 @@ public:
 			controlLogFile.close();
 			controlLogFileOpened = false;
 		}
-		if (positionLogFileOpened) {
-			positionLogFile.close();
-			positionLogFileOpened = false;
-		}
 		initLogFile();
 		initControlLogFile();
-		initPositionLogFile();
 		gzmsg << "UAV plugin reset" << endl;
 	}
 	void OnUpdate() {
@@ -170,27 +128,21 @@ public:
 		if (dt < 0.0005f) dt = 0.0005f;
 		// Update mass
 		mass = (float)body->GetInertial()->Mass();
-		// Read IMU data
+		// Read IMU data and apply low-pass filters
 		Vector gyro_raw = Vector(imu->AngularVelocity().X(), imu->AngularVelocity().Y(), imu->AngularVelocity().Z());
+		gyro = gyroFilter.update(gyro_raw, dt);  // Filtered gyro for control
 		
-		// Apply low-pass filter to gyro
-		if (!gyro_filter_initialized) {
-			gyro_filtered = gyro_raw;
-			gyro_filter_initialized = true;
+		Vector acc_raw = Vector(imu->LinearAcceleration().X(), imu->LinearAcceleration().Y(), imu->LinearAcceleration().Z());
+		acc = accFilter.update(acc_raw, dt);  // Filtered acc for control
+		
+		// Update attitude from IMU - this calculates roll_H, pitch_H from accelerometer
+		// In PDPI mode: only update raw angles (no Kalman filter, PDPI has its own)
+		// In PID mode: update both raw and filtered angles
+		if (strcmp(attitude_mode, "pdpi") == 0) {
+			updateAttitude(acc);  // Only raw angles, no Kalman filter
 		} else {
-			// Low-pass filter: alpha = dt / (dt + tau), where tau = 1/(2*pi*fc)
-			const float tau = 1.0f / (2.0f * M_PI * GYRO_LPF_CUTOFF_HZ);
-			const float alpha = dt / (dt + tau);
-			gyro_filtered.x = alpha * gyro_raw.x + (1.0f - alpha) * gyro_filtered.x;
-			gyro_filtered.y = alpha * gyro_raw.y + (1.0f - alpha) * gyro_filtered.y;
-			gyro_filtered.z = alpha * gyro_raw.z + (1.0f - alpha) * gyro_filtered.z;
+			imu_update(acc);  // Both raw and filtered angles
 		}
-		gyro = gyro_filtered;  // Use filtered gyro for control
-		
-		acc = Vector(imu->LinearAcceleration().X(), imu->LinearAcceleration().Y(), imu->LinearAcceleration().Z());
-		
-		// Update attitude from IMU (with noise) - this calculates roll_H, pitch_H from accelerometer
-		imu_update(acc);
 		
 		const auto pose = this->model->WorldPose();
 		const auto qGazebo = pose.Rot();
@@ -205,12 +157,89 @@ public:
 		vel.y = this->model->WorldLinearVel().Y();
 		vel.z = this->model->WorldLinearVel().Z();
 		
+		// Read RC joystick input
+		double simTimeSec = model->GetWorld()->SimTime().Double();
+		bool rc_available = rc_sim::readRC(simTimeSec);
+		
+		// Show RC status on first successful connection
+		static bool rc_status_shown = false;
+		if (rc_available && !rc_status_shown) {
+			gzmsg << "[RC] Joystick connected and RC control active!" << endl;
+			rc_status_shown = true;
+		} else if (!rc_available && rc_status_shown) {
+			gzwarn << "[RC] Joystick disconnected!" << endl;
+			rc_status_shown = false;
+		}
+		
+		// Handle arm/disarm toggle from channel 2 (works in all modes)
+		static float prevArmChannel = 0.0f;
+		static bool armChannelInitialized = false;
+		if (rc_available && !std::isnan(rc_sim::controlArm)) {
+			float armChannel = rc_sim::controlArm;
+			const float ARM_THRESHOLD = 0.7f;  // Threshold to trigger arm toggle (70% up)
+			
+			if (!armChannelInitialized) {
+				prevArmChannel = armChannel;
+				armChannelInitialized = true;
+			}
+			
+			// Detect rising edge: was low (< threshold) and now high (>= threshold)
+			if (prevArmChannel < ARM_THRESHOLD && armChannel >= ARM_THRESHOLD) {
+				// Toggle arm state
+				armed = !armed;
+				if (armed) {
+					gzmsg << "[RC] >>> ARMED via Channel 2" << endl;
+				} else {
+					gzmsg << "[RC] >>> DISARMED via Channel 2" << endl;
+				}
+			}
+			prevArmChannel = armChannel;
+		}
+		
+		if (strcmp(controller_mode, "stick") == 0 && rc_available) {
+			const float RC_DEADZONE = 0.05f;
+			const float RC_CENTER = 0.5f;
+			
+			auto applyDeadzoneAndMap = [RC_DEADZONE, RC_CENTER](float rc_val, float min_out, float max_out, bool reverse) -> float {
+				if (std::abs(rc_val - RC_CENTER) <= RC_DEADZONE) {
+					return 0.0f;
+				}
+				float remapped;
+				if (rc_val < RC_CENTER) {
+					remapped = rc_sim::mapf(rc_val, 0.0f, RC_CENTER - RC_DEADZONE, 0.0f, 0.5f);
+				} else {
+					remapped = rc_sim::mapf(rc_val, RC_CENTER + RC_DEADZONE, 1.0f, 0.5f, 1.0f);
+				}
+				if (reverse) {
+					return rc_sim::mapf(remapped, 0.0f, 1.0f, max_out, min_out);
+				} else {
+					return rc_sim::mapf(remapped, 0.0f, 1.0f, min_out, max_out);
+				}
+			};
+			
+			if (!std::isnan(rc_sim::controlRoll)) {
+				roll_set = applyDeadzoneAndMap(rc_sim::controlRoll, -0.785398163f, 0.785398163f, rc_sim::rollReverse);
+			}
+			if (!std::isnan(rc_sim::controlPitch)) {
+				pitch_set = applyDeadzoneAndMap(rc_sim::controlPitch, -0.785398163f, 0.785398163f, rc_sim::pitchReverse);
+			}
+			if (!std::isnan(rc_sim::controlYaw)) {
+				yaw_set = applyDeadzoneAndMap(rc_sim::controlYaw, -(float)M_PI, (float)M_PI, rc_sim::yawReverse);
+			}
+			if (!std::isnan(rc_sim::controlThrottle)) {
+				float throttle_val = rc_sim::controlThrottle;
+				if (rc_sim::throttleReverse) {
+					throttle_val = 1.0f - throttle_val;
+				}
+				// Map throttle to altitude setpoint (RC throttle sets Z_set, altitude controller handles it)
+				Z_set = rc_sim::mapf(throttle_val, 0.0f, 1.0f, 0.0f, 5.0f);
+			} 
+		} 
+		
 		control();
 		applyMotorForces();
 		logData();  // Log attitude data
 		logControlData();  // Log control signals
-		logPositionData();  // Log position data (X, Y, Z)
-		publishUDP();  // Publish position to Qt via UDP
 	}
 
 	void applyMotorForces() {
@@ -238,20 +267,17 @@ public:
 	void initNode() {
 		nodeHandle = transport::NodePtr(new transport::Node());
 		nodeHandle->Init();
-		string ns = "~/" + model->GetName();
-		// create motors output topics for debugging and plotting
-		motorPub[0] = nodeHandle->Advertise<msgs::Int>(ns + "/motor0");
-		motorPub[1] = nodeHandle->Advertise<msgs::Int>(ns + "/motor1");
-		motorPub[2] = nodeHandle->Advertise<msgs::Int>(ns + "/motor2");
-		motorPub[3] = nodeHandle->Advertise<msgs::Int>(ns + "/motor3");
 	}
 
 	void initLogFile() {
 		logFile.open("uav_attitude.log", ios::out | ios::trunc);
 		if (logFile.is_open()) {
 			logFileOpened = true;
-			// Write header - format only
-			logFile << "# t roll_H roll_H_filtered pitch_H pitch_H_filtered\n";
+			// Write header - format depends on mode:
+			// PID mode: t roll_H roll_H_filtered pitch_H pitch_H_filtered
+			// PDPI mode: t roll_mFi pitch_mFi roll_angle pitch_angle
+			logFile << "# Format: PID mode -> t roll_H roll_H_filtered pitch_H pitch_H_filtered (deg)\n";
+			logFile << "# Format: PDPI mode -> t roll_mFi pitch_mFi roll_angle pitch_angle (deg)\n";
 			logFile.flush();
 			gzmsg << "Log file opened: uav_attitude.log" << endl;
 		} else {
@@ -272,19 +298,6 @@ public:
 			gzerr << "Failed to open control log file: uav_control.log" << endl;
 		}
 	}
-	void initPositionLogFile() {
-		positionLogFile.open("uav_position.log", ios::out | ios::trunc);
-		if (positionLogFile.is_open()) {
-			positionLogFileOpened = true;
-			// Write header - format only
-			positionLogFile << "# t X Y Z X_set Y_set Z_set\n";
-			positionLogFile.flush();
-			gzmsg << "Position log file opened: uav_position.log" << endl;
-		} else {
-			positionLogFileOpened = false;
-			gzerr << "Failed to open position log file: uav_position.log" << endl;
-		}
-	}
 	void logData() {
 		if (!logFileOpened || !logFile.is_open()) return;
 		
@@ -293,18 +306,33 @@ public:
 		
 		double t = model->GetWorld()->SimTime().Double();
 		
-		// Convert IMU angles to degrees (raw and filtered)
-		float roll_H_deg = roll_H * 180.0f / M_PI;
-		float roll_H_filtered_deg = roll_H_filtered * 180.0f / M_PI;
-		float pitch_H_deg = pitch_H * 180.0f / M_PI;
-		float pitch_H_filtered_deg = pitch_H_filtered * 180.0f / M_PI;
-		
-		// Format: t roll_H roll_H_filtered pitch_H pitch_H_filtered (all in degrees)
 		logFile.precision(6);
 		logFile << std::fixed;
-		logFile << t << " "
-		        << roll_H_deg << " " << roll_H_filtered_deg << " "
-		        << pitch_H_deg << " " << pitch_H_filtered_deg << "\n";
+		
+		// Check attitude control mode
+		if (strcmp(attitude_mode, "pdpi") == 0) {
+			// PDPI mode: log mFi (Kalman filtered) and actual angles
+			float roll_mFi = pdpiRoll.mFi* 180.0f / M_PI;   // Kalman filtered roll angle from PDPI
+			float pitch_mFi = pdpiPitch.mFi* 180.0f / M_PI; // Kalman filtered pitch angle from PDPI
+			float roll_deg = roll_H * 180.0f / M_PI;   // Actual roll angle
+			float pitch_deg = pitch_H * 180.0f / M_PI; // Actual pitch angle
+			
+			// Format: t roll_mFi pitch_mFi roll_angle pitch_angle (all in degrees)
+			logFile << t << " "
+			        << roll_mFi * 180.0f / M_PI << " " << pitch_mFi * 180.0f / M_PI << " "
+			        << roll_deg << " " << pitch_deg << "\n";
+		} else {
+			// PID mode: log original format (raw and filtered IMU angles)
+			float roll_H_deg = roll_H * 180.0f / M_PI;
+			float roll_H_filtered_deg = roll_H_filtered * 180.0f / M_PI;
+			float pitch_H_deg = pitch_H * 180.0f / M_PI;
+			float pitch_H_filtered_deg = pitch_H_filtered * 180.0f / M_PI;
+			
+			// Format: t roll_H roll_H_filtered pitch_H pitch_H_filtered (all in degrees)
+			logFile << t << " "
+			        << roll_H_deg << " " << roll_H_filtered_deg << " "
+			        << pitch_H_deg << " " << pitch_H_filtered_deg << "\n";
+		}
 		
 		// Flush periodically (every 100 lines or so)
 		static int lineCount = 0;
@@ -320,8 +348,8 @@ public:
 		// Determine mode: 0 = stick, 1 = auto
 		int mode = (strcmp(controller_mode, "stick") == 0) ? 0 : 1;
 		
-		// Get pdpiRoll.Us (only valid in auto mode, but log it for both modes)
-		float pdpiRoll_Us = (mode == 1) ? pdpiRoll.Us : 0.0f;
+		// Get pdpiRoll.Us (only valid when using PDPI controller)
+		float pdpiRoll_Us = pdpiRoll.Us;
 		
 		// Format: t mode target_roll target_pitch pdpiRoll_Us
 		controlLogFile.precision(6);
@@ -337,24 +365,6 @@ public:
 			controlLogFile.flush();
 		}
 	}
-	void logPositionData() {
-		if (!positionLogFileOpened || !positionLogFile.is_open()) return;
-		
-		double t = model->GetWorld()->SimTime().Double();
-		
-		// Format: t X Y Z X_set Y_set Z_set
-		positionLogFile.precision(6);
-		positionLogFile << std::fixed;
-		positionLogFile << t << " "
-		                << pos.x << " " << pos.y << " " << pos.z << " "
-		                << X_set << " " << Y_set << " " << Z_set << "\n";
-		
-		// Flush periodically (every 100 lines or so)
-		static int positionLineCount = 0;
-		if (++positionLineCount % 100 == 0) {
-			positionLogFile.flush();
-		}
-	}
 	
 	~ModelFlix() {
 		if (logFileOpened && logFile.is_open()) {
@@ -364,10 +374,6 @@ public:
 		if (controlLogFileOpened && controlLogFile.is_open()) {
 			controlLogFile.close();
 			gzmsg << "Control log file closed" << endl;
-		}
-		if (positionLogFileOpened && positionLogFile.is_open()) {
-			positionLogFile.close();
-			gzmsg << "Position log file closed" << endl;
 		}
 	}
 };
